@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import SidebarModal from "../modals/sidebar-modal";
 
 const Landing = () => {
   const [open, setOpen] = useState(false);
@@ -8,14 +9,21 @@ const Landing = () => {
   //TODO: Remove placeholder 64 flexboxes and replace
   //TODO: Use hashrouting for now and change to browser later.
   //TODO: Find good website for hosting. Vercel may not like client server state changes. Research more on this.
+  //TODO: Add login button on small functionality if picked
 
   return (
     <>
-      <div className="flex justify-center items-center h-screen gap-4">
+      <div className="flex flex-col justify-center items-center h-screen gap-4 md:flex-row">
         <div className="lg:hidden absolute top-0 left-0 w-1">
-          <button className="border bg-white" onClick={() => setOpen(true)}>
+          <button
+            className="hidden border bg-white pr-10 sm:block"
+            onClick={() => setOpen(true)}
+          >
             Click Me!
           </button>
+        </div>
+        <div className="hidden sm:block">
+          <SidebarModal isOpen={open} onClose={() => setOpen(false)} />
         </div>
         <div
           className={`hidden lg:block w-55 h-screen bg-gray-900 text-white p-4 absolute left-0 ${open ? "block" : ""}`}
