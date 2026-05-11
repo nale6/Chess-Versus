@@ -9,6 +9,11 @@ export type Player = {
   isTurn?: boolean;
 };
 
+export type Move = {
+  row: number;
+  col: number;
+};
+
 export type PieceType =
   | "pawn"
   | "bishop"
@@ -28,6 +33,7 @@ export type Square = {
   squarePiece: Piece | null;
   row: number;
   col: number;
+  isEmpty?: boolean;
   selected?: boolean;
   highlighted?: boolean;
 };
