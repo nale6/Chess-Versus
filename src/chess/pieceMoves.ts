@@ -1,6 +1,10 @@
-import type { Piece, Move, Square, Board } from "./chessboard";
+import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
 
-export function pawnMoves(piece: Piece, square: Square, board: Board): Move[] {
+export function pawnMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
   const move: Move[] = [];
   //Move up or down based on piece color
   const direction = piece.color === "white" ? -1 : 1;
@@ -10,7 +14,7 @@ export function pawnMoves(piece: Piece, square: Square, board: Board): Move[] {
   const column = square.col;
 
   //Add legal move bool as part of AND conditional later. Just working on movement for now.
-  if (board[nextRow][column].isEmpty) {
+  if (chessboard[nextRow][column].isEmpty) {
     move.push({ row: nextRow, col: column });
   }
 

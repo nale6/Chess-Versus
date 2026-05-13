@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SidebarModal from "../modals/sidebar-modal";
+import SidebarModal from "../../components/modals/sidebar-modal";
 import { Menu } from "lucide-react";
 
 const Landing = () => {

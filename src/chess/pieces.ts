@@ -1,4 +1,4 @@
-import type { Color, Piece, PieceType } from "./chessboard";
+import type { Color, Piece, PieceType } from "./chessTypes";
 
 export function createPiece(type: PieceType, color: Color): Piece {
   return {

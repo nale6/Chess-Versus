@@ -36,6 +36,12 @@ export type Square = {
   isEmpty?: boolean;
   selected?: boolean;
   highlighted?: boolean;
+  darkTile?: boolean;
+  isTopLeft?: boolean;
+  isTopRight?: boolean;
+  isBottomLeft?: boolean;
+  isBottomRight?: boolean;
+  coordinate: string;
 };
 
-export type Board = Square[][];
+export type ChessBoard = Square[][];
