@@ -7,22 +7,122 @@ import {
   ChessQueen,
   ChessKing,
 } from "lucide-react";
+import { useState } from "react";
 
 type SquareProps = {
   square: Square;
 };
 
 //TODO: Check if sizing is fine for really small viewports, especially on mobile
+//TODO: Mirror for other player's pov (7 - row / col should work)
 export function SquareTSX({ square }: SquareProps) {
+  const [selected, setSelected] = useState(false);
+  square.selected = selected;
+
+  function handleClick(square: Square): void {
+    if (square.selected === false) {
+      square.selected = true;
+      setSelected(true);
+    } else {
+      square.selected = false;
+      setSelected(false);
+    }
+  }
+
   return (
     <div
+      onClick={() => {
+        handleClick(square);
+      }}
       className={`flex justify-center items-center select-none
-        ${square.darkTile ? "bg-gray-800" : "bg-gray-500"}
+        ${square.darkTile ? "bg-gray-800" : "bg-gray-500 "}
         ${square.isTopLeft ? "rounded-tl" : ""}
         ${square.isTopRight ? "rounded-tr" : ""}
         ${square.isBottomLeft ? "rounded-bl" : ""}
-        ${square.isBottomRight ? "rounded-br" : ""}`}
+        ${square.isBottomRight ? "rounded-br" : ""}
+        ${square.selected ? "shadow-[inset_0_0_0_9999px_rgba(500,500,0)]/50" : ""}`}
     >
+      {/*REMINDER For highlighting legal moves, use "shadow-[inset_0_0_0_2px_green]" (Probably need to find brighter shade, or just use selected but green with bright green) */}
+      {square.row === 0 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          8
+        </div>
+      )}
+      {square.row === 1 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          7
+        </div>
+      )}
+      {square.row === 2 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          6
+        </div>
+      )}
+      {square.row === 3 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          5
+        </div>
+      )}
+      {square.row === 4 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          4
+        </div>
+      )}
+      {square.row === 5 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          3
+        </div>
+      )}
+      {square.row === 6 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          2
+        </div>
+      )}
+      {square.row === 7 && square.col === 0 && (
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          1
+        </div>
+      )}
+      {square.row === 7 && square.col === 7 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          H
+        </div>
+      )}
+      {square.row === 7 && square.col === 6 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          G
+        </div>
+      )}
+      {square.row === 7 && square.col === 5 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          F
+        </div>
+      )}
+      {square.row === 7 && square.col === 4 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          E
+        </div>
+      )}
+      {square.row === 7 && square.col === 3 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          D
+        </div>
+      )}
+      {square.row === 7 && square.col === 2 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          C
+        </div>
+      )}
+      {square.row === 7 && square.col === 1 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          B
+        </div>
+      )}
+      {square.row === 7 && square.col === 0 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+          A
+        </div>
+      )}
       {square.squarePiece &&
         square.squarePiece.type === "pawn" &&
         square.squarePiece.color === "white" && (
@@ -143,39 +243,37 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   );
 }
 
-type pieceProps = {
-  color: "white" | "black";
-};
+// type pieceProps = {
+//   color: "white" | "black";
+// };
 
 // export function pawnTSX
 
-// Array.from({ length: 64 }).map((_, i) => {
-//   //Convert 64 squares into 8x8 grid
-//   const row = Math.floor(i / 8);
-//   const col = i % 8;
-//   //Files are columns in chess, going in order from A to H
-//   //Ranks are rows going from 1 to 8
-//   const file = files[col];
-//   const rank = 8 - row;
-//   //Black's POV:
-//   //const file = files[7-col];
-//   //const rank = row + 1;
+//TODO finish function for moving pieces. Also need to do valid/legal moves with certain rules such as castling.
+// const [click, setClicked] = useState(false);
+// const [storePiece, setStorePiece] = useState("");
+// const [board, setBoard] = useState();
 
-//   const darkTile = (row + col) % 2 === 1;
-//   const isTopLeft = row === 0 && col === 0 ? true : false;
-//   const isTopRight = row === 0 && col === 7 ? true : false;
-//   const isBottomLeft = row === 7 && col === 0 ? true : false;
-//   const isBottomRight = row === 7 && col === 7 ? true : false;
+// export function handleclick(
+//   piece: Piece,
+//   square: Square,
+//   chessboard: ChessBoard,
+// ): void {
+//   if (!click && !piece) {
+//     setStorePiece("");
+//     return;
+//   }
 
-//   return (
-//     <div
-//       key={i}
-//       className={`flex justify-center items-center select-none
-//         ${darkTile ? "bg-gray-800" : "bg-gray-500"}
-//         ${isTopLeft ? "rounded-tl" : ""}
-//         ${isTopRight ? "rounded-tr" : ""}
-//         ${isBottomLeft ? "rounded-bl" : ""}
-//         ${isBottomRight ? "rounded-br" : ""}`}
-//     />
-//   );
-// });
+//   if (click && piece) {
+//     setClicked(false);
+//     setStorePiece("");
+//   }
+
+//   if (piece && !click) {
+//     setClicked(true);
+//     setStorePiece(square.squarePiece.type);
+//   }
+
+//   if (!piece && click) {
+//   }
+// }

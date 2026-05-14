@@ -40,7 +40,12 @@ const Landing = () => {
           <h2 className="text-xl font-bold mb-4">Chess Versus</h2>
 
           <ul className="space-y-2">
-            <li onClick={() => navigate("/game")}>Play</li>
+            <li
+              className="cursor-pointer select-none"
+              onClick={() => navigate("/game")}
+            >
+              Play
+            </li>
             <li>Community</li>
             <li>Settings</li>
           </ul>

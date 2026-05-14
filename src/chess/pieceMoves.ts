@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
 
 export function pawnMoves(

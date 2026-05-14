@@ -20,7 +20,7 @@ export default function SidebarModal({ isOpen, onClose }: sidebarModal) {
         </button>
         <h2 className="text-xl font-bold mb-4">Chess Versus</h2>
         <ul className="space-y-2">
-          <li>Play</li>
+          <li className="cursor-pointer select-none">Play</li>
           <li>Community</li>
           <li>Settings</li>
         </ul>

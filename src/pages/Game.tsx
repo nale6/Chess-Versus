@@ -5,9 +5,7 @@ import { createEmptyBoard, populateBoard } from "../chess/chessFunctions";
 
 export default function ChessBoard() {
   const navigate = useNavigate();
-  const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
   const initBoard = populateBoard(createEmptyBoard());
-
   const [board, setBoard] = useState(initBoard);
 
   return (
