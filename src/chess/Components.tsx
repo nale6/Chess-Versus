@@ -6,33 +6,26 @@ import {
   ChessBishop,
   ChessQueen,
   ChessKing,
+  SquarePi,
 } from "lucide-react";
 import { useState } from "react";
 
 type SquareProps = {
   square: Square;
+  onClick: (square: Square) => void;
 };
 
 //TODO: Check if sizing is fine for really small viewports, especially on mobile
 //TODO: Mirror for other player's pov (7 - row / col should work)
-export function SquareTSX({ square }: SquareProps) {
-  const [selected, setSelected] = useState(false);
-  square.selected = selected;
-
-  function handleClick(square: Square): void {
-    if (square.selected === false) {
-      square.selected = true;
-      setSelected(true);
-    } else {
-      square.selected = false;
-      setSelected(false);
-    }
-  }
+export function SquareTSX({ square, onClick }: SquareProps) {
+  // const [board, setBoard] = useState<ChessBoard>();
+  // square.selected = selected;
 
   return (
     <div
       onClick={() => {
-        handleClick(square);
+        // selectClick(square);
+        onClick(square);
       }}
       className={`flex justify-center items-center select-none
         ${square.darkTile ? "bg-gray-800" : "bg-gray-500 "}
@@ -44,92 +37,100 @@ export function SquareTSX({ square }: SquareProps) {
     >
       {/*REMINDER For highlighting legal moves, use "shadow-[inset_0_0_0_2px_green]" (Probably need to find brighter shade, or just use selected but green with bright green) */}
       {square.row === 0 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           8
         </div>
       )}
       {square.row === 1 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           7
         </div>
       )}
       {square.row === 2 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           6
         </div>
       )}
       {square.row === 3 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           5
         </div>
       )}
       {square.row === 4 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           4
         </div>
       )}
       {square.row === 5 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           3
         </div>
       )}
       {square.row === 6 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           2
         </div>
       )}
       {square.row === 7 && square.col === 0 && (
-        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mr-[20%] sm:mr-[18%] md:mr-[15%] lg:mr-[12%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           1
         </div>
       )}
       {square.row === 7 && square.col === 7 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           H
         </div>
       )}
       {square.row === 7 && square.col === 6 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           G
         </div>
       )}
       {square.row === 7 && square.col === 5 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           F
         </div>
       )}
       {square.row === 7 && square.col === 4 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           E
         </div>
       )}
       {square.row === 7 && square.col === 3 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           D
         </div>
       )}
       {square.row === 7 && square.col === 2 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           C
         </div>
       )}
       {square.row === 7 && square.col === 1 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           B
         </div>
       )}
       {square.row === 7 && square.col === 0 && (
-        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           A
         </div>
       )}
       {square.squarePiece &&
         square.squarePiece.type === "pawn" &&
         square.squarePiece.color === "white" && (
-          <ChessPawn
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
+          <div className="relative">
+            <div
+              className="absolute inset-0 inline-flex self-start w-fit h-fit items-center justify-center bg-transparent p-0 border-0 shadow-none"
+              draggable
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <ChessPawn
+                size={21}
+                className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
+              />
+            </div>
+          </div>
         )}
       {square.squarePiece &&
         square.squarePiece.type === "pawn" &&
@@ -234,10 +235,97 @@ type ChessBoardProps = {
 };
 
 export function ChessBoardTSX({ board }: ChessBoardProps) {
+  const [click, setClicked] = useState(false);
+  const [storePiece, setStorePiece] = useState<Piece | null>(null);
+  const [prevSquare, setPrevSquare] = useState<Square | null>(null);
+  // const [selected, setSelected] = useState(false);
+
+  // function selectClick(square: Square): void {
+  //   if (square.selected === false) {
+  //     square.selected = true;
+  //     setSelected(true);
+  //   } else {
+  //     square.selected = false;
+  //     setSelected(false);
+  //   }
+  // }
+
+  function handleClick(square: Square): void {
+    //Initial click on empty square
+    if (!click && !square.squarePiece) {
+      setStorePiece(null);
+      setPrevSquare(null);
+      setClicked(false);
+      // console.log("clicked on empty");
+    }
+    //Already clicked -> clicking on a square with a piece
+    else if (click && square.squarePiece) {
+      // //grab legal moves function here
+      if (prevSquare) {
+        if (prevSquare.squarePiece?.color !== square.squarePiece.color) {
+          prevSquare.squarePiece = null;
+          square.squarePiece = storePiece;
+          prevSquare.selected = false;
+          setClicked(false);
+        } else if (prevSquare === square) {
+          prevSquare.selected = false;
+          setStorePiece(null);
+          setPrevSquare(null);
+          setClicked(false);
+        } else {
+          prevSquare.selected = false;
+          setStorePiece(square.squarePiece);
+          setPrevSquare(square);
+          square.selected = true;
+        }
+      }
+      //Old code vvv It's rewritten up above but keeping it for now in case of bugs
+      // console.log("clicked with stored value and on tile with piece");
+      // setClicked(false);
+      // setStorePiece(null);
+      // setPrevSquare(null);
+      // //grab legal moves function here
+      // if (square.squarePiece) {
+      //   setClicked(true);
+      //   setStorePiece(square.squarePiece);
+      //   setStorePiece(null);
+      //   setPrevSquare(null);
+      //   setClicked(false);
+      // }
+    }
+    //Initial click -> Click on square with piece
+    else if (square.squarePiece && !click) {
+      // console.log("clicked set and stored value");
+      setClicked(true);
+      setPrevSquare(square);
+      setStorePiece(square.squarePiece);
+      square.selected = true;
+    }
+    //Already clicked -> Click on square with no piece
+    else if (!square.squarePiece && click && storePiece !== null) {
+      // console.log("clicked and clicked on empty square with stored value");
+      //grab legal moves function here
+      if (true && storePiece !== null) {
+        if (!square.squarePiece) {
+          square.squarePiece = storePiece;
+          setClicked(false);
+          if (prevSquare !== null) {
+            prevSquare.squarePiece = null;
+            prevSquare.selected = false;
+          }
+        }
+      }
+    }
+  }
+
   return (
     <div className="grid grid-cols-8 w-[80vw] md:w-[90vw] lg:w-[95v] max-w-170 aspect-square shadow-2xl">
       {board.flat().map((square) => (
-        <SquareTSX key={`${square.row}-${square.col}`} square={square} />
+        <SquareTSX
+          key={`${square.row}-${square.col}`}
+          onClick={handleClick}
+          square={square}
+        />
       ))}
     </div>
   );
@@ -249,31 +337,4 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
 // export function pawnTSX
 
-//TODO finish function for moving pieces. Also need to do valid/legal moves with certain rules such as castling.
-// const [click, setClicked] = useState(false);
-// const [storePiece, setStorePiece] = useState("");
-// const [board, setBoard] = useState();
-
-// export function handleclick(
-//   piece: Piece,
-//   square: Square,
-//   chessboard: ChessBoard,
-// ): void {
-//   if (!click && !piece) {
-//     setStorePiece("");
-//     return;
-//   }
-
-//   if (click && piece) {
-//     setClicked(false);
-//     setStorePiece("");
-//   }
-
-//   if (piece && !click) {
-//     setClicked(true);
-//     setStorePiece(square.squarePiece.type);
-//   }
-
-//   if (!piece && click) {
-//   }
-// }
+// TODO finish function for moving pieces. Also need to do valid/legal moves with certain rules such as castling.

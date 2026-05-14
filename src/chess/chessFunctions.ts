@@ -47,14 +47,13 @@ export function createEmptyBoard(): ChessBoard {
 export function populateBoard(chessboard: ChessBoard): ChessBoard {
   return chessboard.map((row, rowi) => {
     return row.map((square, coli) => {
-      let piece: Piece | null = square.squarePiece;
-
       //Black Pawn
       if (rowi === 1) {
         square.squarePiece = {
           type: "pawn",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -64,6 +63,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "pawn",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -73,6 +73,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "rook",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -82,6 +83,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "rook",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -91,6 +93,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "knight",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -100,6 +103,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "knight",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -109,6 +113,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "bishop",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -118,6 +123,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "bishop",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -127,6 +133,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "queen",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -136,6 +143,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "queen",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -145,6 +153,7 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "king",
           color: "black",
           turnCount: 0,
+          moved: false,
         };
       }
 
@@ -154,12 +163,12 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
           type: "king",
           color: "white",
           turnCount: 0,
+          moved: false,
         };
       }
 
       return {
         ...square,
-        piece,
       };
     });
   });
