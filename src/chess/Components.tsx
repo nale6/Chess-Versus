@@ -1,4 +1,4 @@
-import type { Square, ChessBoard, Piece, PieceType } from "./chessTypes";
+import type { Square, ChessBoard, Piece, PieceType, Move } from "./chessTypes";
 import {
   ChessPawn,
   ChessRook,
@@ -9,6 +9,7 @@ import {
   SquarePi,
 } from "lucide-react";
 import { useState } from "react";
+import { pawnMoves } from "./pieceMoves";
 
 type SquareProps = {
   square: Square;
@@ -33,7 +34,8 @@ export function SquareTSX({ square, onClick }: SquareProps) {
         ${square.isTopRight ? "rounded-tr" : ""}
         ${square.isBottomLeft ? "rounded-bl" : ""}
         ${square.isBottomRight ? "rounded-br" : ""}
-        ${square.selected ? "shadow-[inset_0_0_0_9999px_rgba(500,500,0)]/50" : ""}`}
+        ${square.selected ? "shadow-[inset_0_0_0_9999px_rgba(300,300,0)]/50" : ""}
+        ${square.highlighted ? "shadow-[inset_0_0_0_9999px_rgba(0,125,0)]/50" : ""}`}
     >
       {/*REMINDER For highlighting legal moves, use "shadow-[inset_0_0_0_2px_green]" (Probably need to find brighter shade, or just use selected but green with bright green) */}
       {square.row === 0 && square.col === 0 && (
@@ -238,83 +240,121 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [click, setClicked] = useState(false);
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
-  // const [selected, setSelected] = useState(false);
+  // const [legalMove, setLegalMove] = useState<Move[]>([]);
+  // const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
+  // ^^^ Not using these but for now keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
 
-  // function selectClick(square: Square): void {
-  //   if (square.selected === false) {
-  //     square.selected = true;
-  //     setSelected(true);
-  //   } else {
-  //     square.selected = false;
-  //     setSelected(false);
-  //   }
-  // }
+  function getLegalMoves(square: Square): Move[] {
+    let moves: Move[] = [];
+    if (square && square.squarePiece!.type === "pawn") {
+      moves = pawnMoves(square.squarePiece!, square, board);
+    }
+    return moves;
+  }
 
+  function highlightLegalMoves(moves: Move[]): void {
+    moves.forEach((move) => {
+      let square = board
+        .flat()
+        .find((square) => square.row === move.row && square.col === move.col);
+      square!.highlighted = true;
+      setHighlightedSquares((prev) => [...prev, square!]);
+      // console.log("Found move: ", square);
+    });
+    // console.log("highlighted");
+  }
+
+  function unHighlight(): void {
+    setHighlightedSquares([]);
+    let squares = board.flat();
+    squares.forEach((square) => {
+      square.highlighted = false;
+    });
+  }
+
+  //TODO: Only move on legal moves / selected squares as legal moves
   function handleClick(square: Square): void {
     //Initial click on empty square
     if (!click && !square.squarePiece) {
       setStorePiece(null);
       setPrevSquare(null);
       setClicked(false);
-      // console.log("clicked on empty");
+      unHighlight();
     }
     //Already clicked -> clicking on a square with a piece
     else if (click && square.squarePiece) {
-      // //grab legal moves function here
+      //grab legal moves function here
       if (prevSquare) {
+        //If clicking on square with different color piece
         if (prevSquare.squarePiece?.color !== square.squarePiece.color) {
-          prevSquare.squarePiece = null;
-          square.squarePiece = storePiece;
-          prevSquare.selected = false;
-          setClicked(false);
-        } else if (prevSquare === square) {
+          if (square.highlighted === true) {
+            square.squarePiece = storePiece;
+            prevSquare.selected = false;
+            setClicked(false);
+            unHighlight();
+            if (prevSquare.squarePiece!.moved === false) {
+              prevSquare.squarePiece!.moved = true;
+            }
+            prevSquare.squarePiece = null;
+          } else {
+            prevSquare.selected = false;
+            setStorePiece(null);
+            setPrevSquare(null);
+            setClicked(false);
+            unHighlight();
+          }
+        }
+        //If clicking on same square
+        else if (prevSquare === square) {
           prevSquare.selected = false;
           setStorePiece(null);
           setPrevSquare(null);
           setClicked(false);
-        } else {
+          unHighlight();
+        }
+        //Other cases are clicking on non-same square with same color piece
+        else {
           prevSquare.selected = false;
           setStorePiece(square.squarePiece);
           setPrevSquare(square);
+          unHighlight();
+          highlightLegalMoves(getLegalMoves(square));
           square.selected = true;
         }
       }
-      //Old code vvv It's rewritten up above but keeping it for now in case of bugs
-      // console.log("clicked with stored value and on tile with piece");
-      // setClicked(false);
-      // setStorePiece(null);
-      // setPrevSquare(null);
-      // //grab legal moves function here
-      // if (square.squarePiece) {
-      //   setClicked(true);
-      //   setStorePiece(square.squarePiece);
-      //   setStorePiece(null);
-      //   setPrevSquare(null);
-      //   setClicked(false);
-      // }
     }
     //Initial click -> Click on square with piece
     else if (square.squarePiece && !click) {
-      // console.log("clicked set and stored value");
       setClicked(true);
       setPrevSquare(square);
       setStorePiece(square.squarePiece);
       square.selected = true;
+      highlightLegalMoves(getLegalMoves(square));
     }
     //Already clicked -> Click on square with no piece
     else if (!square.squarePiece && click && storePiece !== null) {
-      // console.log("clicked and clicked on empty square with stored value");
       //grab legal moves function here
-      if (true && storePiece !== null) {
+      if (square.highlighted && storePiece !== null) {
         if (!square.squarePiece) {
           square.squarePiece = storePiece;
           setClicked(false);
+          if (prevSquare?.squarePiece!.moved === false) {
+            prevSquare!.squarePiece!.moved = true;
+          }
           if (prevSquare !== null) {
             prevSquare.squarePiece = null;
             prevSquare.selected = false;
+            setStorePiece(null);
           }
         }
+      } else {
+        prevSquare!.selected = false;
+        setStorePiece(null);
+        setPrevSquare(null);
+        setClicked(false);
+        unHighlight();
       }
+      unHighlight();
     }
   }
 
