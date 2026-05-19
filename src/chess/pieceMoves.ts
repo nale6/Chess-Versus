@@ -169,15 +169,16 @@ export function bishopMoves(
     northW = false;
     southW = false;
   }
-  if (nextColumn === 0) {
+  if (nextColumn === 7) {
     northE = false;
     southE = false;
   }
   while (northW) {
-    if (nextRow - 1 === 0) {
-      northW = false;
-    }
-    if (nextColumn - 1 === 0) {
+    // if (nextRow === 0 || nextColumn === 0) {
+    //   northW = false;
+    //   break;
+    // }
+    if (nextRow - 1 === 0 || nextColumn - 1 === 0) {
       northW = false;
     }
     if (!chessboard[nextRow - 1][nextColumn - 1].squarePiece) {
@@ -197,13 +198,17 @@ export function bishopMoves(
     nextColumn--;
   }
   // vvvvv Without resetting nextrow and nextcolumn this code makes it bounce from the left board, potential later mechanic
-  //TODO: Has out of index bugs, fix ASAP
   nextRow = square.row;
   nextColumn = square.col;
   while (northE) {
-    if (nextColumn + 1 === 7) {
+    // if (nextColumn === 7 || nextRow === 0) {
+    //   northE = false;
+    //   break;
+    // }
+    if (nextColumn + 1 === 7 || nextRow - 1 === 0) {
       northE = false;
     }
+
     if (!chessboard[nextRow - 1][nextColumn + 1].squarePiece) {
       move.push({ row: nextRow - 1, col: nextColumn + 1 });
     } else if (chessboard[nextRow - 1][nextColumn + 1].squarePiece) {
@@ -223,7 +228,10 @@ export function bishopMoves(
   nextRow = square.row;
   nextColumn = square.col;
   while (southW) {
-    if (nextColumn - 1 === 0) {
+    // if (nextColumn === 0 || nextRow === 7) {
+    //   southW = false;
+    // }
+    if (nextColumn - 1 === 0 || nextRow + 1 === 7) {
       southW = false;
     }
     if (!chessboard[nextRow + 1][nextColumn - 1].squarePiece) {
@@ -245,7 +253,11 @@ export function bishopMoves(
   nextRow = square.row;
   nextColumn = square.col;
   while (southE) {
-    if (nextColumn + 1 === 7) {
+    // if (nextColumn === 7 || nextRow === 7) {
+    //   southE = false;
+    //   break;
+    // }
+    if (nextColumn + 1 === 7 || nextRow + 1 === 7) {
       southE = false;
     }
     if (!chessboard[nextRow + 1][nextColumn + 1].squarePiece) {
