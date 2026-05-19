@@ -9,7 +9,7 @@ import {
   SquarePi,
 } from "lucide-react";
 import { useState } from "react";
-import { pawnMoves } from "./pieceMoves";
+import { bishopMoves, pawnMoves, rookMoves } from "./pieceMoves";
 
 type SquareProps = {
   square: Square;
@@ -240,14 +240,20 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [click, setClicked] = useState(false);
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
-  // const [legalMove, setLegalMove] = useState<Move[]>([]);
-  // const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
-  // ^^^ Not using these but for now keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
+  const [legalMove, setLegalMove] = useState<Move[]>([]);
+  const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
+  // ^^^ Not really using last 2 but keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
 
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
     if (square && square.squarePiece!.type === "pawn") {
       moves = pawnMoves(square.squarePiece!, square, board);
+    }
+    if (square && square.squarePiece!.type === "rook") {
+      moves = rookMoves(square.squarePiece!, square, board);
+    }
+    if (square && square.squarePiece!.type === "bishop") {
+      moves = bishopMoves(square.squarePiece!, square, board);
     }
     return moves;
   }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
 
+//TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square
 export function pawnMoves(
   piece: Piece,
   square: Square,
@@ -41,5 +42,227 @@ export function pawnMoves(
     }
   }
 
+  return move;
+}
+
+//TODO code castling
+export function rookMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const move: Move[] = [];
+  const direction = piece.color === "white" ? -1 : 1;
+  //White POV vvv Reverse for 2nd player
+  let cardinalN = true;
+  let cardinalS = true;
+  let cardinalW = true;
+  let cardinalE = true;
+  let nextRow = square.row;
+  let revRow = square.row;
+  let westCol = square.col;
+  let eastCol = square.col;
+  let column = square.col;
+
+  while (cardinalN) {
+    if (piece.color === "white" && nextRow === 0) {
+      cardinalN = false;
+      break;
+    } else if (piece.color === "black" && nextRow == 7) {
+      cardinalN = false;
+      break;
+    }
+    if (chessboard[nextRow + direction][column].squarePiece) {
+      cardinalN = false;
+    }
+    if (
+      nextRow + direction >= 0 &&
+      nextRow + direction < 8 &&
+      chessboard[nextRow + direction][column].squarePiece?.color !== piece.color
+    ) {
+      move.push({ row: nextRow + direction, col: column });
+      nextRow = nextRow + direction;
+    } else {
+      cardinalN = false;
+    }
+  }
+  while (cardinalS) {
+    if (piece.color === "white" && revRow === 7) {
+      cardinalS = false;
+      break;
+    } else if (piece.color === "black" && revRow === 0) {
+      cardinalS = false;
+      break;
+    }
+    if (chessboard[revRow - direction][column].squarePiece) {
+      cardinalS = false;
+    }
+    if (
+      revRow - direction >= 0 &&
+      revRow - direction < 8 &&
+      chessboard[revRow - direction][column].squarePiece?.color !== piece.color
+    ) {
+      move.push({ row: revRow - direction, col: column });
+      revRow = revRow - direction;
+    } else {
+      cardinalS = false;
+    }
+  }
+  while (cardinalW) {
+    if (westCol === 0) {
+      cardinalW = false;
+      break;
+    }
+    if (chessboard[square.row][westCol - 1].squarePiece) {
+      cardinalW = false;
+    }
+    if (
+      chessboard[square.row][westCol - 1].squarePiece?.color !== piece.color
+    ) {
+      move.push({ row: square.row, col: westCol - 1 });
+      westCol = westCol - 1;
+    } else {
+      cardinalW = false;
+    }
+  }
+  while (cardinalE) {
+    if (eastCol === 7) {
+      cardinalE = false;
+      break;
+    }
+    if (chessboard[square.row][eastCol + 1].squarePiece) {
+      cardinalE = false;
+    }
+    if (
+      chessboard[square.row][eastCol + 1].squarePiece?.color !== piece.color
+    ) {
+      move.push({ row: square.row, col: eastCol + 1 });
+      eastCol = eastCol + 1;
+    } else {
+      cardinalE = false;
+    }
+  }
+  return move;
+}
+
+export function bishopMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const move: Move[] = [];
+  let northW = true;
+  let northE = true;
+  let southW = true;
+  let southE = true;
+  let nextRow = square.row;
+  let nextColumn = square.col;
+  if (nextRow === 7) {
+    southW = false;
+    southE = false;
+  }
+  if (nextRow === 0) {
+    northW = false;
+    northE = false;
+  }
+  if (nextColumn === 0) {
+    northW = false;
+    southW = false;
+  }
+  if (nextColumn === 0) {
+    northE = false;
+    southE = false;
+  }
+  while (northW) {
+    if (nextRow - 1 === 0) {
+      northW = false;
+    }
+    if (nextColumn - 1 === 0) {
+      northW = false;
+    }
+    if (!chessboard[nextRow - 1][nextColumn - 1].squarePiece) {
+      move.push({ row: nextRow - 1, col: nextColumn - 1 });
+    } else if (chessboard[nextRow - 1][nextColumn - 1].squarePiece) {
+      if (
+        piece.color ===
+        chessboard[nextRow - 1][nextColumn - 1].squarePiece!.color
+      ) {
+        northW = false;
+      } else {
+        move.push({ row: nextRow - 1, col: nextColumn - 1 });
+        northW = false;
+      }
+    }
+    nextRow--;
+    nextColumn--;
+  }
+  // vvvvv Without resetting nextrow and nextcolumn this code makes it bounce from the left board, potential later mechanic
+  //TODO: Has out of index bugs, fix ASAP
+  nextRow = square.row;
+  nextColumn = square.col;
+  while (northE) {
+    if (nextColumn + 1 === 7) {
+      northE = false;
+    }
+    if (!chessboard[nextRow - 1][nextColumn + 1].squarePiece) {
+      move.push({ row: nextRow - 1, col: nextColumn + 1 });
+    } else if (chessboard[nextRow - 1][nextColumn + 1].squarePiece) {
+      if (
+        piece.color ===
+        chessboard[nextRow - 1][nextColumn + 1].squarePiece!.color
+      ) {
+        northE = false;
+      } else {
+        move.push({ row: nextRow - 1, col: nextColumn + 1 });
+        northE = false;
+      }
+    }
+    nextRow--;
+    nextColumn++;
+  }
+  nextRow = square.row;
+  nextColumn = square.col;
+  while (southW) {
+    if (nextColumn - 1 === 0) {
+      southW = false;
+    }
+    if (!chessboard[nextRow + 1][nextColumn - 1].squarePiece) {
+      move.push({ row: nextRow + 1, col: nextColumn - 1 });
+    } else if (chessboard[nextRow + 1][nextColumn - 1].squarePiece) {
+      if (
+        piece.color ===
+        chessboard[nextRow + 1][nextColumn - 1].squarePiece!.color
+      ) {
+        southW = false;
+      } else {
+        move.push({ row: nextRow + 1, col: nextColumn - 1 });
+        southW = false;
+      }
+    }
+    nextRow++;
+    nextColumn--;
+  }
+  nextRow = square.row;
+  nextColumn = square.col;
+  while (southE) {
+    if (nextColumn + 1 === 7) {
+      southE = false;
+    }
+    if (!chessboard[nextRow + 1][nextColumn + 1].squarePiece) {
+      move.push({ row: nextRow + 1, col: nextColumn + 1 });
+    } else if (chessboard[nextRow + 1][nextColumn + 1].squarePiece) {
+      if (
+        piece.color ===
+        chessboard[nextRow + 1][nextColumn + 1].squarePiece!.color
+      ) {
+        southE = false;
+      } else {
+        move.push({ row: nextRow + 1, col: nextColumn + 1 });
+        southE = false;
+      }
+    }
+    nextRow++;
+    nextColumn++;
+  }
   return move;
 }
