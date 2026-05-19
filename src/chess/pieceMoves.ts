@@ -279,6 +279,7 @@ export function bishopMoves(
   }
   return move;
 }
+
 export function queenMoves(
   piece: Piece,
   square: Square,
@@ -296,18 +297,96 @@ export function queenMoves(
   return move;
 }
 
-// export function kingMoves(
-//   piece: Piece,
-//   square: Square,
-//   chessboard: ChessBoard,
-// ): Move[] {
-//   let n = true;
-//   let s = true;
-//   let nextRow = square.row;
-//   let nextCol = square.col;
+//TODO: Code part of legal moves where king CANNOT move or take piece if it will be captured
+export function kingMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const move: Move[] = [];
 
-//   if (nextRow === 7) {
-//   }
-//   const move: Move[] = [];
-//   return move;
-// }
+  let n = true;
+  let s = true;
+  let w = true;
+  let e = true;
+  let nextRow = square.row;
+  let nextCol = square.col;
+
+  if (nextRow === 7) {
+    s = false;
+  }
+  if (nextRow === 0) {
+    n = false;
+  }
+  if (nextCol === 0) {
+    w = false;
+  }
+  if (nextCol === 7) {
+    e = false;
+  }
+  let ne = true;
+  let nw = true;
+  let se = true;
+  let sw = true;
+  if (!n || !e) {
+    ne = false;
+  }
+  if (!n || !w) {
+    nw = false;
+  }
+  if (!s || !e) {
+    se = false;
+  }
+  if (!s || !w) {
+    sw = false;
+  }
+  if (
+    n &&
+    chessboard[nextRow - 1][nextCol].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow - 1, col: nextCol });
+  }
+  if (
+    s &&
+    chessboard[nextRow + 1][nextCol].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow + 1, col: nextCol });
+  }
+  if (
+    w &&
+    chessboard[nextRow][nextCol - 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow, col: nextCol - 1 });
+  }
+  if (
+    e &&
+    chessboard[nextRow][nextCol + 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow, col: nextCol + 1 });
+  }
+  if (
+    nw &&
+    chessboard[nextRow - 1][nextCol - 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow - 1, col: nextCol - 1 });
+  }
+  if (
+    ne &&
+    chessboard[nextRow - 1][nextCol + 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow - 1, col: nextCol + 1 });
+  }
+  if (
+    sw &&
+    chessboard[nextRow + 1][nextCol - 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow + 1, col: nextCol - 1 });
+  }
+  if (
+    se &&
+    chessboard[nextRow + 1][nextCol + 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: nextRow + 1, col: nextCol + 1 });
+  }
+  return move;
+}
