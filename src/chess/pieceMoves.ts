@@ -3,6 +3,7 @@ import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
 
 //TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square.
 //TODO when pawn reaches end, can upgrade piece to knight, bishop, rook or queen
+//Add en passante
 export function pawnMoves(
   piece: Piece,
   square: Square,
@@ -298,6 +299,7 @@ export function queenMoves(
 }
 
 //TODO: Code part of legal moves where king CANNOT move or take piece if it will be captured
+//Also add castling
 export function kingMoves(
   piece: Piece,
   square: Square,
@@ -387,6 +389,78 @@ export function kingMoves(
     chessboard[nextRow + 1][nextCol + 1].squarePiece?.color !== piece.color
   ) {
     move.push({ row: nextRow + 1, col: nextCol + 1 });
+  }
+  return move;
+}
+
+//Knight has 6 movement options
+export function knightMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const move: Move[] = [];
+  const cRow = square.row;
+  const cCol = square.col;
+  //North L movements
+  if (
+    cRow - 2 >= 0 &&
+    cCol - 1 >= 0 &&
+    chessboard[cRow - 2][cCol - 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow - 2, col: cCol - 1 });
+  }
+  if (
+    cRow - 2 >= 0 &&
+    cCol + 1 <= 7 &&
+    chessboard[cRow - 2][cCol + 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow - 2, col: cCol + 1 });
+  }
+  //South L movements
+  if (
+    cRow + 2 <= 7 &&
+    cCol - 1 >= 0 &&
+    chessboard[cRow + 2][cCol - 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow + 2, col: cCol - 1 });
+  }
+  if (
+    cRow + 2 <= 7 &&
+    cCol + 1 <= 7 &&
+    chessboard[cRow + 2][cCol + 1].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow + 2, col: cCol + 1 });
+  }
+  //West L movements
+  if (
+    cRow - 1 >= 0 &&
+    cCol - 2 >= 0 &&
+    chessboard[cRow - 1][cCol - 2].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow - 1, col: cCol - 2 });
+  }
+  if (
+    cRow + 1 <= 7 &&
+    cCol - 2 >= 0 &&
+    chessboard[cRow + 1][cCol - 2].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow + 1, col: cCol - 2 });
+  }
+  //East L movements
+  if (
+    cRow - 1 >= 0 &&
+    cCol + 2 <= 7 &&
+    chessboard[cRow - 1][cCol + 2].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow - 1, col: cCol + 2 });
+  }
+  if (
+    cRow + 1 <= 7 &&
+    cCol + 2 <= 7 &&
+    chessboard[cRow + 1][cCol + 2].squarePiece?.color !== piece.color
+  ) {
+    move.push({ row: cRow + 1, col: cCol + 2 });
   }
   return move;
 }

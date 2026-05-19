@@ -12,6 +12,7 @@ import { useState } from "react";
 import {
   bishopMoves,
   kingMoves,
+  knightMoves,
   pawnMoves,
   queenMoves,
   rookMoves,
@@ -266,6 +267,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     if (square && square.squarePiece!.type === "king") {
       moves = kingMoves(square.squarePiece!, square, board);
+    }
+    if (square && square.squarePiece!.type === "knight") {
+      moves = knightMoves(square.squarePiece!, square, board);
     }
     return moves;
   }
