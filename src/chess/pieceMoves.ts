@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
 
-//TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square
+//TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square.
+//TODO when pawn reaches end, can upgrade piece to knight, bishop, rook or queen
 export function pawnMoves(
   piece: Piece,
   square: Square,
@@ -278,3 +279,35 @@ export function bishopMoves(
   }
   return move;
 }
+export function queenMoves(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const rookMove = rookMoves(piece, square, chessboard);
+  const bishopMove = bishopMoves(piece, square, chessboard);
+  const move: Move[] = [];
+  rookMove.forEach((moves) => {
+    move.push(moves);
+  });
+  bishopMove.forEach((moves) => {
+    move.push(moves);
+  });
+  return move;
+}
+
+// export function kingMoves(
+//   piece: Piece,
+//   square: Square,
+//   chessboard: ChessBoard,
+// ): Move[] {
+//   let n = true;
+//   let s = true;
+//   let nextRow = square.row;
+//   let nextCol = square.col;
+
+//   if (nextRow === 7) {
+//   }
+//   const move: Move[] = [];
+//   return move;
+// }

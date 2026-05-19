@@ -9,7 +9,7 @@ import {
   SquarePi,
 } from "lucide-react";
 import { useState } from "react";
-import { bishopMoves, pawnMoves, rookMoves } from "./pieceMoves";
+import { bishopMoves, pawnMoves, queenMoves, rookMoves } from "./pieceMoves";
 
 type SquareProps = {
   square: Square;
@@ -254,6 +254,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     if (square && square.squarePiece!.type === "bishop") {
       moves = bishopMoves(square.squarePiece!, square, board);
+    }
+    if (square && square.squarePiece!.type === "queen") {
+      moves = queenMoves(square.squarePiece!, square, board);
     }
     return moves;
   }
