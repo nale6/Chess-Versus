@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Piece, Move, Square, ChessBoard } from "./chessTypes";
+import type { Piece, Move, Square, ChessBoard, Color } from "./chessTypes";
 
 //TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square.
 //TODO when pawn reaches end, can upgrade piece to knight, bishop, rook or queen
@@ -390,6 +390,16 @@ export function kingMoves(
   ) {
     move.push({ row: nextRow + 1, col: nextCol + 1 });
   }
+  // const illegalMoves = kingLegal(piece, chessboard);
+  // move.forEach((mve) => {
+  //   illegalMoves.forEach((lmve) => {
+  //     if (mve === lmve) {
+  //       const index = move.indexOf(mve);
+  //       move.splice(index, 1);
+  //     }
+  //   });
+  // });
+  // console.log(move);
   return move;
 }
 
@@ -464,3 +474,97 @@ export function knightMoves(
   }
   return move;
 }
+
+export function enemyMoves(color: Color, chessboard: ChessBoard): Move[] {
+  const move: Move[] = [];
+  chessboard.flat().forEach((sqr) => {
+    if (sqr.squarePiece && sqr.squarePiece.color !== color) {
+      switch (sqr.squarePiece.type) {
+        case "pawn":
+          const dir = sqr.squarePiece.color === "white" ? -1 : 1;
+          if (sqr.col > 0 && sqr.col < 7) {
+            move.push({ row: sqr.row + dir, col: sqr.col - 1 });
+            move.push({ row: sqr.row + dir, col: sqr.col + 1 });
+          } else if (sqr.col === 0) {
+            move.push({ row: sqr.row + dir, col: sqr.col + 1 });
+          } else if (sqr.col === 7) {
+            move.push({ row: sqr.row + dir, col: sqr.col - 1 });
+          }
+          break;
+
+        case "rook":
+          const rookMove = rookMoves(sqr.squarePiece, sqr, chessboard);
+          rookMove.forEach((rMove) => {
+            move.push(rMove);
+          });
+          break;
+
+        case "bishop":
+          const bishopMove = bishopMoves(sqr.squarePiece, sqr, chessboard);
+          bishopMove.forEach((bMove) => {
+            move.push(bMove);
+          });
+          break;
+
+        case "queen":
+          const queenMove = queenMoves(sqr.squarePiece, sqr, chessboard);
+          queenMove.forEach((qMove) => {
+            move.push(qMove);
+          });
+          break;
+
+        case "knight":
+          const knightMove = knightMoves(sqr.squarePiece, sqr, chessboard);
+          knightMove.forEach((knMove) => {
+            move.push(knMove);
+          });
+          break;
+
+        case "king":
+          const kingMove = kingMoves(sqr.squarePiece, sqr, chessboard);
+          kingMove.forEach((kMove) => {
+            move.push(kMove);
+          });
+          break;
+
+        default:
+          break;
+      }
+    }
+  });
+  return move;
+}
+
+export function filterLegalMoves(
+  illegalMoves: Move[],
+  allMoves: Move[],
+): Move[] {
+  illegalMoves.forEach((illegalMove) => {
+    allMoves.forEach((move) => {
+      if (move.row === illegalMove.row && move.col === illegalMove.col) {
+        const index = allMoves.indexOf(move);
+        allMoves.splice(index, 1);
+      }
+    });
+  });
+  let legalMoves = allMoves;
+  return legalMoves;
+}
+
+export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
+  let checkmate = false;
+  const moves = enemyMoves(color, chessboard);
+  moves.forEach((move) => {
+    if (
+      chessboard[move.row][move.col].squarePiece?.type === "king" &&
+      chessboard[move.row][move.col].squarePiece?.color === color
+    ) {
+      checkmate = true;
+    }
+  });
+  console.log("Checkmate true stalemate false: ", checkmate);
+}
+
+//TODO func discoveredCheck
+//TODO check need to move king or block
+//TODO draw on repeated move 3x

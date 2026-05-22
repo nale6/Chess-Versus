@@ -18,7 +18,10 @@ export default function ChessBoard() {
           Return
         </button>
       </div>
-      <ChessBoardTSX board={board} />
+      <div className="ml-60">
+        <ChessBoardTSX board={board} />
+      </div>
+      <div className="ml-20 mr-20">Player's turn: Insert Here</div>
     </div>
   );
 }

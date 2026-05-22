@@ -173,3 +173,6 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
     });
   });
 }
+
+//TODO player turns
+//TODO timer

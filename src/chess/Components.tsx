@@ -11,11 +11,14 @@ import {
 import { useState } from "react";
 import {
   bishopMoves,
+  enemyMoves,
+  filterLegalMoves,
   kingMoves,
   knightMoves,
   pawnMoves,
   queenMoves,
   rookMoves,
+  staleCheckMate,
 } from "./pieceMoves";
 
 type SquareProps = {
@@ -267,6 +270,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     if (square && square.squarePiece!.type === "king") {
       moves = kingMoves(square.squarePiece!, square, board);
+      let enemyMovement = enemyMoves(square.squarePiece!.color, board);
+      let legalMoves = filterLegalMoves(enemyMovement, moves);
+      if (legalMoves.length === 0) {
+        staleCheckMate(square.squarePiece!.color, board);
+      }
+      return legalMoves;
     }
     if (square && square.squarePiece!.type === "knight") {
       moves = knightMoves(square.squarePiece!, square, board);
@@ -352,6 +361,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       setStorePiece(square.squarePiece);
       square.selected = true;
       highlightLegalMoves(getLegalMoves(square));
+      //King cannot put itself on a square where it can get captured vvv
+      // if (square.squarePiece.type === "king") {
+      //   const allEnemyMoves: Move[] = enemyMoves(
+      //     square.squarePiece!.color,
+      //     board,
+      //   );
+      //   allEnemyMoves.forEach((illegalMove) => {
+      //     board[illegalMove.row][illegalMove.col].highlighted = false;
+      //   });
+      // }
+      //Else logic to unhighlight squares for other pieces that if it moves, king gets put in discovered check
     }
     //Already clicked -> Click on square with no piece
     else if (!square.squarePiece && click && storePiece !== null) {
