@@ -21,7 +21,7 @@ export default function ChessBoard() {
       <div className="ml-60">
         <ChessBoardTSX board={board} />
       </div>
-      <div className="ml-20 mr-20">Player's turn: Insert Here</div>
+      <div className="ml-20 mr-20">Filler Space</div>
     </div>
   );
 }

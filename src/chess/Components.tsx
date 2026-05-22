@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import {
   bishopMoves,
+  check,
   enemyMoves,
   filterLegalMoves,
   kingMoves,
@@ -250,10 +251,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [click, setClicked] = useState(false);
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
+  const [playerTurn, setPlayerTurn] = useState("white");
   const [legalMove, setLegalMove] = useState<Move[]>([]);
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
   // ^^^ Not really using last 2 but keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
-
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
     if (square && square.squarePiece!.type === "pawn") {
@@ -303,6 +304,36 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     });
   }
 
+  function unSelect(): void {
+    let squares = board.flat();
+    squares.forEach((square) => {
+      square.selected = false;
+    });
+  }
+
+  function onlyMoveOnTurn(square: Square): void {
+    if (square.squarePiece?.color !== playerTurn) {
+      setClicked(false);
+      square.highlighted = false;
+      unHighlight();
+      unSelect();
+      console.log("Not their turn");
+    }
+  }
+
+  function onSuccessfulMove(): void {
+    if (playerTurn === "white") {
+      setPlayerTurn("black");
+    } else if (playerTurn === "black") {
+      setPlayerTurn("white");
+    }
+  }
+
+  function parentClick(square: Square): void {
+    handleClick(square);
+    onlyMoveOnTurn(square);
+  }
+
   //TODO: Only move on legal moves / selected squares as legal moves
   function handleClick(square: Square): void {
     //Initial click on empty square
@@ -327,6 +358,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               prevSquare.squarePiece!.moved = true;
             }
             prevSquare.squarePiece = null;
+            onSuccessfulMove();
           } else {
             prevSquare.selected = false;
             setStorePiece(null);
@@ -388,6 +420,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             prevSquare.selected = false;
             setStorePiece(null);
           }
+          onSuccessfulMove();
         }
       } else {
         prevSquare!.selected = false;
@@ -405,7 +438,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       {board.flat().map((square) => (
         <SquareTSX
           key={`${square.row}-${square.col}`}
-          onClick={handleClick}
+          onClick={parentClick}
           square={square}
         />
       ))}

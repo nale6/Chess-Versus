@@ -475,6 +475,7 @@ export function knightMoves(
   return move;
 }
 
+//TODO: Bug since the moves stop at first piece it meets, lets the king be in check but move 'backwards' and will still be in check
 export function enemyMoves(color: Color, chessboard: ChessBoard): Move[] {
   const move: Move[] = [];
   chessboard.flat().forEach((sqr) => {
@@ -563,6 +564,23 @@ export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
     }
   });
   console.log("Checkmate true stalemate false: ", checkmate);
+}
+
+//TODO: Work on this function more, works better with turns
+export function check(color: Color, chessboard: ChessBoard): void {
+  const moves: Move[] = enemyMoves(color, chessboard);
+  moves.forEach((move) => {
+    if (
+      chessboard[move.row][move.col].squarePiece?.color !== color &&
+      chessboard[move.row][move.col].squarePiece?.type === "king"
+    ) {
+      console.log(
+        chessboard[move.row][move.col].squarePiece?.color,
+        "'s king is in check and needs to move.",
+      );
+      console.log(move);
+    }
+  });
 }
 
 //TODO func discoveredCheck
