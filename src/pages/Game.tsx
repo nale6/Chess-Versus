@@ -18,10 +18,13 @@ export default function ChessBoard() {
           Return
         </button>
       </div>
-      <div className="ml-60">
+      <div className="ml-70">
         <ChessBoardTSX board={board} />
       </div>
-      <div className="ml-20 mr-20">Filler Space</div>
+
+      {/* <div className="ml-50 p-6 scale-200 pt-70 pr-15 bg-gray-600">
+        <div className="size-20 text-sm overflow-y-auto">Test</div>
+      </div> */}
     </div>
   );
 }

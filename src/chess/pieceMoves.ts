@@ -476,7 +476,7 @@ export function knightMoves(
 }
 
 //TODO: Bug since the moves stop at first piece it meets, lets the king be in check but move 'backwards' and will still be in check
-export function enemyMoves(color: Color, chessboard: ChessBoard): Move[] {
+export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   const move: Move[] = [];
   chessboard.flat().forEach((sqr) => {
     if (sqr.squarePiece && sqr.squarePiece.color !== color) {
@@ -552,9 +552,12 @@ export function filterLegalMoves(
   return legalMoves;
 }
 
+//TODO: This only works if enemy has NO legal moves left. Need another function exploring if opponent is checkmated DESPITE having legal moves.
+//TODO: Of course this also means that there needs to be a check logic (done) and logic that only allows moves that would deny checkmate if possible.
+//TODO: Discovered check logic
 export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
   let checkmate = false;
-  const moves = enemyMoves(color, chessboard);
+  const moves = getMoves(color, chessboard);
   moves.forEach((move) => {
     if (
       chessboard[move.row][move.col].squarePiece?.type === "king" &&
@@ -563,26 +566,54 @@ export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
       checkmate = true;
     }
   });
+  //DEBUG
   console.log("Checkmate true stalemate false: ", checkmate);
 }
 
-//TODO: Work on this function more, works better with turns
-export function check(color: Color, chessboard: ChessBoard): void {
-  const moves: Move[] = enemyMoves(color, chessboard);
+//TODO return boolean AND the moves checking opponent
+export function check(color: Color, chessboard: ChessBoard): boolean {
+  let inCheck = false;
+  const checkingMoves: Move[] = [];
+  const moves: Move[] = getMoves(color, chessboard);
   moves.forEach((move) => {
-    if (
-      chessboard[move.row][move.col].squarePiece?.color !== color &&
-      chessboard[move.row][move.col].squarePiece?.type === "king"
-    ) {
+    if (chessboard[move.row][move.col].squarePiece?.type === "king") {
+      //DEBUG
       console.log(
         chessboard[move.row][move.col].squarePiece?.color,
         "'s king is in check and needs to move.",
       );
       console.log(move);
+      inCheck = true;
+      checkingMoves.push(move);
     }
   });
+  return inCheck;
+}
+
+//TODO finish returning legal moves that block check or move king
+export function checkMoves(
+  color: Color,
+  chessboard: ChessBoard,
+  checkingMoves: Move[],
+): Move[] {
+  const legalMoves: Move[] = [];
+  //TODO Change logic for getMoves and create getEnemyMoves or vice versa for readability
+  let opposite: Color = color === "white" ? "black" : color;
+  const myMoves: Move[] = getMoves(opposite, chessboard);
+  myMoves.forEach((move) => {
+    checkingMoves.forEach((checkedMove) => {
+      if (
+        chessboard[move.row][move.col] ===
+        chessboard[checkedMove.row][checkedMove.col]
+      ) {
+        legalMoves.push(move);
+      }
+    });
+  });
+
+  return legalMoves;
 }
 
 //TODO func discoveredCheck
-//TODO check need to move king or block
+//TODO check forcing to move king or block, disallowing other moves
 //TODO draw on repeated move 3x

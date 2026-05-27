@@ -1,4 +1,11 @@
-import type { Square, ChessBoard, Piece, PieceType, Move } from "./chessTypes";
+import type {
+  Square,
+  ChessBoard,
+  Piece,
+  PieceType,
+  Move,
+  Color,
+} from "./chessTypes";
 import {
   ChessPawn,
   ChessRook,
@@ -12,8 +19,9 @@ import { useState } from "react";
 import {
   bishopMoves,
   check,
-  enemyMoves,
+  checkMoves,
   filterLegalMoves,
+  getMoves,
   kingMoves,
   knightMoves,
   pawnMoves,
@@ -251,9 +259,11 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [click, setClicked] = useState(false);
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
-  const [playerTurn, setPlayerTurn] = useState("white");
+  const [playerTurn, setPlayerTurn] = useState<Color>("white");
   const [legalMove, setLegalMove] = useState<Move[]>([]);
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
+  const [inCheck, setInCheck] = useState(false);
+  const [checkingMoves, setCheckingMoves] = useState<Move[]>([]);
   // ^^^ Not really using last 2 but keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
@@ -271,9 +281,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     if (square && square.squarePiece!.type === "king") {
       moves = kingMoves(square.squarePiece!, square, board);
-      let enemyMovement = enemyMoves(square.squarePiece!.color, board);
+      let enemyMovement = getMoves(square.squarePiece!.color, board);
       let legalMoves = filterLegalMoves(enemyMovement, moves);
-      if (legalMoves.length === 0) {
+      //TODO condense lower part/make it readable
+      let blackwhite: Color = "black";
+      if (square.squarePiece?.color === "black") blackwhite = "white";
+      let myMoves = getMoves(blackwhite, board);
+      let filteredMyMoves = filterLegalMoves(enemyMovement, myMoves);
+      if (filteredMyMoves.length === 0) {
         staleCheckMate(square.squarePiece!.color, board);
       }
       return legalMoves;
@@ -332,6 +347,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function parentClick(square: Square): void {
     handleClick(square);
     onlyMoveOnTurn(square);
+    //TODO need to get the moves checking the opponent
+    setInCheck(check(playerTurn, board));
   }
 
   //TODO: Only move on legal moves / selected squares as legal moves
