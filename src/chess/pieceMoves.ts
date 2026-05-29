@@ -570,7 +570,6 @@ export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
   console.log("Checkmate true stalemate false: ", checkmate);
 }
 
-//TODO return boolean AND the moves checking opponent
 export function check(color: Color, chessboard: ChessBoard): boolean {
   let inCheck = false;
   const checkingMoves: Move[] = [];
@@ -612,6 +611,19 @@ export function checkMoves(
   });
 
   return legalMoves;
+}
+
+export function simulateMove(
+  prevSquare: Square,
+  chessboard: ChessBoard,
+  square: Square,
+  color: Color,
+): boolean {
+  let clone = structuredClone(chessboard);
+  clone[prevSquare.row][prevSquare.col].squarePiece = null;
+  clone[square.row][square.col].squarePiece = prevSquare.squarePiece;
+  console.log("HELLO 1: ", check(color, clone));
+  return check(color, clone);
 }
 
 //TODO func discoveredCheck
