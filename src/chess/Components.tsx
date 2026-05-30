@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import {
+  autoRankUp,
   bishopMoves,
   check,
   checkMoves,
@@ -343,6 +344,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     } else if (playerTurn === "black") {
       setPlayerTurn("white");
     }
+    autoRankUp(playerTurn, board);
   }
 
   function parentClick(square: Square): void {

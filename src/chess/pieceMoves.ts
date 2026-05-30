@@ -623,10 +623,36 @@ export function simulateMove(
   let clone = structuredClone(chessboard);
   clone[prevSquare.row][prevSquare.col].squarePiece = null;
   clone[square.row][square.col].squarePiece = prevSquare.squarePiece;
-  console.log("HELLO 1: ", check(color, clone));
   return check(color, clone);
 }
 
-//TODO func discoveredCheck
-//TODO check forcing to move king or block, disallowing other moves
+export function rankUp(square: Square): void {
+  square.squarePiece!.type = "queen";
+}
+
+//TODO: Let player choose piece to rank up to with a modal displaying options. For now auto ranks up to queen
+export function autoRankUp(color: Color, board: ChessBoard): void {
+  if (color === "white") {
+    board.flat().forEach((square) => {
+      if (
+        square.row === 0 &&
+        square.squarePiece &&
+        square.squarePiece.type === "pawn"
+      ) {
+        rankUp(square);
+      }
+    });
+  } else if (color === "black") {
+    board.flat().forEach((square) => {
+      if (
+        square.row === 7 &&
+        square.squarePiece &&
+        square.squarePiece.type === "pawn"
+      ) {
+        rankUp(square);
+      }
+    });
+  }
+}
+
 //TODO draw on repeated move 3x
