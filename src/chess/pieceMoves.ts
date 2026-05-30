@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { Piece, Move, Square, ChessBoard, Color } from "./chessTypes";
 
-//TODO fix bug, if pawn hasnt moved and theres piece in front of it directly, it can still move to the 2nd square.
 //TODO when pawn reaches end, can upgrade piece to knight, bishop, rook or queen
 //Add en passante
 export function pawnMoves(
@@ -24,8 +23,10 @@ export function pawnMoves(
       move.push({ row: nextRow, col: column });
     }
   }
-  if (!piece.moved) {
-    move.push({ row: nextRowNoMove, col: column });
+  if (!piece.moved && move.length > 0) {
+    if (chessboard[nextRowNoMove][column].squarePiece === null) {
+      move.push({ row: nextRowNoMove, col: column });
+    }
   }
   if (column - 1 >= 0) {
     if (
