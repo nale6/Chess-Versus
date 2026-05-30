@@ -354,6 +354,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
   //TODO: Only move on legal moves / selected squares as legal moves
   function handleClick(square: Square): void {
+    const playerIsInCheck = check(playerTurn, board);
     //Initial click on empty square
     if (!click && !square.squarePiece) {
       setStorePiece(null);
@@ -367,7 +368,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       if (prevSquare) {
         //If clicking on square with different color piece
         if (prevSquare.squarePiece?.color !== square.squarePiece.color) {
-          if (square.highlighted === true && !inCheck) {
+          if (square.highlighted === true && !playerIsInCheck) {
             square.squarePiece = storePiece;
             prevSquare.selected = false;
             setClicked(false);
@@ -379,9 +380,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             onSuccessfulMove();
           }
           //If in check, simulate move, if still in check, unhighlight and don't use move, else use move
-          else if (square.highlighted === true && inCheck) {
-            setInCheck(simulateMove(prevSquare, board, square, playerTurn));
-            if (inCheck) {
+          else if (square.highlighted === true && playerIsInCheck) {
+            const stillInCheck = simulateMove(
+              prevSquare,
+              board,
+              square,
+              playerTurn,
+            );
+            if (stillInCheck) {
               prevSquare.selected = false;
               setStorePiece(null);
               setPrevSquare(null);
@@ -389,8 +395,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               unHighlight();
               return;
             } else {
-              handleClick(square);
-              return;
+              setInCheck(false);
+              setClicked(false);
+              square.squarePiece = storePiece;
+              prevSquare!.squarePiece = null;
+              prevSquare!.selected = false;
+              setPrevSquare(null);
+              setStorePiece(null);
+              unHighlight();
+              onSuccessfulMove();
             }
           } else {
             prevSquare.selected = false;
@@ -430,7 +443,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     //Already clicked -> Click on square with no piece
     else if (!square.squarePiece && click && storePiece !== null) {
       //grab legal moves function here
-      if (square.highlighted && storePiece !== null && !inCheck) {
+      if (square.highlighted && storePiece !== null && !playerIsInCheck) {
         if (!square.squarePiece) {
           square.squarePiece = storePiece;
           setClicked(false);
@@ -447,7 +460,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       }
       //Same thing, if it's in check, unhighlight all and forget move, else continue with move
       //BUG: Causing infinite recursion, find solution. Otherwise the check and simulation move does work, just repeatedly calling handleclick because setInCheck is not immediately updating inCheck, just scheduling it, so it's not being updated.
-      else if (square.highlighted && storePiece !== null && inCheck) {
+      else if (square.highlighted && storePiece !== null && playerIsInCheck) {
         setInCheck(simulateMove(prevSquare!, board, square, playerTurn));
         const stillInCheck = simulateMove(
           prevSquare!,
@@ -464,9 +477,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           return;
         } else {
           setInCheck(false);
-          handleClick(square);
-          console.log("This other thing is happening");
-          return;
+          setClicked(false);
+          square.squarePiece = storePiece;
+          prevSquare!.squarePiece = null;
+          prevSquare!.selected = false;
+          setPrevSquare(null);
+          setStorePiece(null);
+          unHighlight();
+          onSuccessfulMove();
         }
       } else {
         prevSquare!.selected = false;
