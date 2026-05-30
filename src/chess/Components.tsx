@@ -265,7 +265,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
   const [inCheck, setInCheck] = useState(false);
   const [checkingMoves, setCheckingMoves] = useState<Move[]>([]);
-  // ^^^ Not really using last 2 but keeping them commented for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
+  // ^^^ Not really using last 4 but keeping them for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
     if (square && square.squarePiece!.type === "pawn") {
@@ -369,6 +369,20 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         //If clicking on square with different color piece
         if (prevSquare.squarePiece?.color !== square.squarePiece.color) {
           if (square.highlighted === true && !playerIsInCheck) {
+            const inCheckAfterMove = simulateMove(
+              prevSquare,
+              board,
+              square,
+              playerTurn,
+            );
+            if (inCheckAfterMove) {
+              setPrevSquare(null);
+              setStorePiece(null);
+              prevSquare.selected = false;
+              setClicked(false);
+              unHighlight();
+              return;
+            }
             square.squarePiece = storePiece;
             prevSquare.selected = false;
             setClicked(false);
@@ -443,7 +457,23 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     //Already clicked -> Click on square with no piece
     else if (!square.squarePiece && click && storePiece !== null) {
       //grab legal moves function here
+      //vvv Discovered check, if after user's move the king gets put in check, they can't perform this move
+      const inCheckAfterMove = simulateMove(
+        prevSquare!,
+        board,
+        square,
+        playerTurn,
+      );
       if (square.highlighted && storePiece !== null && !playerIsInCheck) {
+        //Discovered check
+        if (inCheckAfterMove) {
+          setPrevSquare(null);
+          setStorePiece(null);
+          prevSquare!.selected = false;
+          setClicked(false);
+          unHighlight();
+          return;
+        }
         if (!square.squarePiece) {
           square.squarePiece = storePiece;
           setClicked(false);
