@@ -299,8 +299,6 @@ export function queenMoves(
   return move;
 }
 
-//TODO: Code part of legal moves where king CANNOT move or take piece if it will be captured
-//Also add castling
 export function kingMoves(
   piece: Piece,
   square: Square,
@@ -391,16 +389,62 @@ export function kingMoves(
   ) {
     move.push({ row: nextRow + 1, col: nextCol + 1 });
   }
-  // const illegalMoves = kingLegal(piece, chessboard);
-  // move.forEach((mve) => {
-  //   illegalMoves.forEach((lmve) => {
-  //     if (mve === lmve) {
-  //       const index = move.indexOf(mve);
-  //       move.splice(index, 1);
-  //     }
-  //   });
-  // });
-  // console.log(move);
+
+  //Castling
+  if (square.squarePiece!.moved === false) {
+    let i = 1;
+
+    while (e) {
+      if (
+        chessboard[nextRow][nextCol + i].squarePiece?.type === "rook" &&
+        chessboard[nextRow][nextCol + i].squarePiece!.moved === false
+      ) {
+        move.push({ row: nextRow, col: nextCol + (i - 1) });
+        console.log(move);
+      }
+      if (chessboard[nextRow][nextCol + i].squarePiece?.color === piece.color) {
+        e = false;
+      } else if (chessboard[nextRow][nextCol + i].squarePiece === null) {
+        i++;
+      }
+      if (square.squarePiece!.color === "white" && i === 4) {
+        e = false;
+        break;
+      } else if (square.squarePiece!.color === "black" && i === 4) {
+        e = false;
+        break;
+      }
+    }
+  }
+
+  //Castling
+  if (square.squarePiece!.moved === false) {
+    let i = 1;
+
+    while (w) {
+      if (
+        chessboard[nextRow][nextCol - i].squarePiece?.type === "rook" &&
+        chessboard[nextRow][nextCol - i].squarePiece!.moved === false
+      ) {
+        move.push({ row: nextRow, col: nextCol - (i - 1) });
+        console.log(move);
+      }
+      if (chessboard[nextRow][nextCol - i].squarePiece?.color === piece.color) {
+        w = false;
+      } else if (chessboard[nextRow][nextCol - i].squarePiece === null) {
+        i++;
+      }
+      if (square.squarePiece!.color === "white" && i === 5) {
+        w = false;
+        break;
+      } else if (square.squarePiece!.color === "black" && i === 5) {
+        w = false;
+        break;
+      }
+    }
+  }
+
+  console.log(move);
   return move;
 }
 
@@ -653,6 +697,10 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
       }
     });
   }
+}
+
+export function castling(board: ChessBoard): ChessBoard {
+  return board;
 }
 
 //TODO draw on repeated move 3x
