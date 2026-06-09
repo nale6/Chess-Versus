@@ -12,6 +12,9 @@ export type Player = {
 export type Move = {
   row: number;
   col: number;
+  castle?: boolean;
+  castleDir?: string;
+  enPassant?: boolean;
 };
 
 export type PieceType =
@@ -42,6 +45,10 @@ export type Square = {
   isBottomLeft?: boolean;
   isBottomRight?: boolean;
   coordinate: string;
+  castle?: boolean;
+  castleDir?: string;
+  enPassant?: boolean;
+  enPassantTake?: boolean;
 };
 
 export type ChessBoard = Square[][];

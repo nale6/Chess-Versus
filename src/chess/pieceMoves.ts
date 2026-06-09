@@ -25,7 +25,7 @@ export function pawnMoves(
   }
   if (!piece.moved && move.length > 0) {
     if (chessboard[nextRowNoMove][column].squarePiece === null) {
-      move.push({ row: nextRowNoMove, col: column });
+      move.push({ row: nextRowNoMove, col: column, enPassant: true });
     }
   }
   if (column - 1 >= 0) {
@@ -45,10 +45,26 @@ export function pawnMoves(
     }
   }
 
+  if (square.col > 0 && square.col < 7) {
+    if (chessboard[square.row][square.col - 1].enPassant === true) {
+      move.push({ row: nextRow, col: column - 1 });
+    }
+    if (chessboard[square.row][square.col + 1].enPassant === true) {
+      move.push({ row: nextRow, col: column + 1 });
+    }
+  } else if (square.col === 0) {
+    if (chessboard[square.row][square.col + 1].enPassant === true) {
+      move.push({ row: nextRow, col: column + 1 });
+    }
+  } else if (square.col === 7) {
+    if (chessboard[square.row][square.col - 1].enPassant === true) {
+      move.push({ row: nextRow, col: column - 1 });
+    }
+  }
+
   return move;
 }
 
-//TODO code castling
 export function rookMoves(
   piece: Piece,
   square: Square,
@@ -177,10 +193,6 @@ export function bishopMoves(
     southE = false;
   }
   while (northW) {
-    // if (nextRow === 0 || nextColumn === 0) {
-    //   northW = false;
-    //   break;
-    // }
     if (nextRow - 1 === 0 || nextColumn - 1 === 0) {
       northW = false;
     }
@@ -204,10 +216,6 @@ export function bishopMoves(
   nextRow = square.row;
   nextColumn = square.col;
   while (northE) {
-    // if (nextColumn === 7 || nextRow === 0) {
-    //   northE = false;
-    //   break;
-    // }
     if (nextColumn + 1 === 7 || nextRow - 1 === 0) {
       northE = false;
     }
@@ -231,9 +239,6 @@ export function bishopMoves(
   nextRow = square.row;
   nextColumn = square.col;
   while (southW) {
-    // if (nextColumn === 0 || nextRow === 7) {
-    //   southW = false;
-    // }
     if (nextColumn - 1 === 0 || nextRow + 1 === 7) {
       southW = false;
     }
@@ -256,10 +261,6 @@ export function bishopMoves(
   nextRow = square.row;
   nextColumn = square.col;
   while (southE) {
-    // if (nextColumn === 7 || nextRow === 7) {
-    //   southE = false;
-    //   break;
-    // }
     if (nextColumn + 1 === 7 || nextRow + 1 === 7) {
       southE = false;
     }
@@ -399,8 +400,12 @@ export function kingMoves(
         chessboard[nextRow][nextCol + i].squarePiece?.type === "rook" &&
         chessboard[nextRow][nextCol + i].squarePiece!.moved === false
       ) {
-        move.push({ row: nextRow, col: nextCol + (i - 1) });
-        console.log(move);
+        move.push({
+          row: nextRow,
+          col: nextCol + (i - 1),
+          castle: true,
+          castleDir: "right",
+        });
       }
       if (chessboard[nextRow][nextCol + i].squarePiece?.color === piece.color) {
         e = false;
@@ -426,8 +431,12 @@ export function kingMoves(
         chessboard[nextRow][nextCol - i].squarePiece?.type === "rook" &&
         chessboard[nextRow][nextCol - i].squarePiece!.moved === false
       ) {
-        move.push({ row: nextRow, col: nextCol - (i - 1) });
-        console.log(move);
+        move.push({
+          row: nextRow,
+          col: nextCol - (i - 1),
+          castle: true,
+          castleDir: "left",
+        });
       }
       if (chessboard[nextRow][nextCol - i].squarePiece?.color === piece.color) {
         w = false;
@@ -443,8 +452,6 @@ export function kingMoves(
       }
     }
   }
-
-  console.log(move);
   return move;
 }
 
@@ -520,7 +527,6 @@ export function knightMoves(
   return move;
 }
 
-//TODO: Bug since the moves stop at first piece it meets, lets the king be in check but move 'backwards' and will still be in check
 export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   const move: Move[] = [];
   chessboard.flat().forEach((sqr) => {
@@ -599,7 +605,6 @@ export function filterLegalMoves(
 
 //TODO: This only works if enemy has NO legal moves left. Need another function exploring if opponent is checkmated DESPITE having legal moves.
 //TODO: Of course this also means that there needs to be a check logic (done) and logic that only allows moves that would deny checkmate if possible.
-//TODO: Discovered check logic
 export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
   let checkmate = false;
   const moves = getMoves(color, chessboard);
@@ -697,10 +702,6 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
       }
     });
   }
-}
-
-export function castling(board: ChessBoard): ChessBoard {
-  return board;
 }
 
 //TODO draw on repeated move 3x

@@ -308,9 +308,36 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         .find((square) => square.row === move.row && square.col === move.col);
       square!.highlighted = true;
       setHighlightedSquares((prev) => [...prev, square!]);
-      // console.log("Found move: ", square);
+      if (move.castle) {
+        square!.castle = move.castle;
+        square!.castleDir = move.castleDir;
+      }
+      if (move.enPassant) {
+        square!.enPassant = move.enPassant;
+        let direction = playerTurn === "white" ? 1 : -1;
+        board[square!.row + direction][square!.col].enPassantTake = true;
+      }
     });
-    // console.log("highlighted");
+  }
+
+  function castling(board: ChessBoard, player: Color, direction: string): void {
+    let x = 7;
+    if (player === "black") x = 0;
+    let dir = 0;
+    let move = 2;
+    if (direction === "right") {
+      dir = 7;
+      move = 5;
+    }
+    let sqr = board[x][dir].squarePiece;
+    board[x][move].squarePiece = sqr;
+    board[x][dir].squarePiece = null;
+  }
+
+  function enPassant(board: ChessBoard, square: Square, player: Color): void {
+    let dir = 1;
+    if (player === "black") dir = -1;
+    board[square.row + dir][square.col].squarePiece = null;
   }
 
   function unHighlight(): void {
@@ -345,6 +372,23 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       setPlayerTurn("white");
     }
     autoRankUp(playerTurn, board);
+    removeCastle();
+  }
+
+  function removeCastle(): void {
+    let squares = board.flat();
+    squares.forEach((square) => {
+      square.castle = false;
+      square.castleDir = "";
+    });
+  }
+
+  function removeEnPassant(): void {
+    let squares = board.flat();
+    squares.forEach((square) => {
+      square.enPassant = false;
+      square.enPassantTake = false;
+    });
   }
 
   function parentClick(square: Square): void {
@@ -487,11 +531,19 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             prevSquare.selected = false;
             setStorePiece(null);
           }
+          if (square.castle) {
+            castling(board, playerTurn, square.castleDir!);
+          }
+          if (square.enPassantTake && storePiece.type === "pawn") {
+            enPassant(board, square, playerTurn);
+            removeEnPassant();
+            console.log("happened");
+          }
+          console.log(square.enPassant);
           onSuccessfulMove();
         }
       }
       //Same thing, if it's in check, unhighlight all and forget move, else continue with move
-      //BUG: Causing infinite recursion, find solution. Otherwise the check and simulation move does work, just repeatedly calling handleclick because setInCheck is not immediately updating inCheck, just scheduling it, so it's not being updated.
       else if (square.highlighted && storePiece !== null && playerIsInCheck) {
         setInCheck(simulateMove(prevSquare!, board, square, playerTurn));
         const stillInCheck = simulateMove(
@@ -505,7 +557,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           setStorePiece(null);
           setClicked(false);
           unHighlight();
-          console.log("This is happening");
           return;
         } else {
           setInCheck(false);
