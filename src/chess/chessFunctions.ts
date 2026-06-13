@@ -1,3 +1,4 @@
+import { SquarePi } from "lucide-react";
 import type { Player, Color, ChessBoard, Piece } from "./chessTypes";
 
 export function createPlayer(color: Color): Player {
@@ -172,6 +173,169 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
       };
     });
   });
+}
+
+export function coordinates(board: ChessBoard): void {
+  const files: Record<number, string> = {
+    0: "a",
+    1: "b",
+    2: "c",
+    3: "d",
+    4: "e",
+    5: "f",
+    6: "g",
+    7: "h",
+  };
+  board.flat().forEach((square) => {
+    const num = square.col;
+    const file = files[num];
+    const coord = file + (8 - square.row);
+    square.coordinate = coord;
+  });
+  // board.flat().forEach((square) => {
+  //   console.log(square.coordinate);
+  // });
+}
+
+export function fenFormat(board: ChessBoard): string {
+  const fen: string[] = [];
+  board.forEach((rank) => {
+    let row = "";
+    let empty = 0;
+    const map = {
+      king: "k",
+      queen: "q",
+      rook: "r",
+      bishop: "b",
+      knight: "n",
+      pawn: "p",
+    };
+
+    rank.forEach((square) => {
+      if (square.squarePiece === null) {
+        empty++;
+      } else {
+        if (empty > 0) {
+          row += empty;
+          empty = 0;
+        }
+        const pieceSymbol = map[square.squarePiece.type];
+        if (square.squarePiece.color === "white") {
+          row += pieceSymbol.toUpperCase();
+        } else {
+          row += pieceSymbol;
+        }
+      }
+    });
+    if (empty > 0) {
+      row += empty;
+    }
+    fen.push(row);
+  });
+  const fenJoin = fen.join("/");
+  return fenJoin;
+}
+
+export function completeFEN(
+  board: ChessBoard,
+  fen: string,
+  playerTurn: string,
+  halfClock: number,
+  turns: number,
+): string {
+  let fenComplete: string = fen;
+  fenComplete += " ";
+  fenComplete += playerTurn[0];
+  fenComplete += " ";
+  const blackQueenRook = board[0][0];
+  const blackKing = board[0][4];
+  const blackKingRook = board[0][7];
+  const whiteQueenRook = board[7][0];
+  const whiteKing = board[7][4];
+  const whiteKingRook = board[7][7];
+  let blackQueenCastle = false;
+  let blackKingCastle = false;
+  let whiteQueenCastle = false;
+  let whiteKingCastle = false;
+
+  if (
+    blackQueenRook.squarePiece?.type === "rook" &&
+    blackKing.squarePiece?.type === "king"
+  ) {
+    if (!blackQueenRook.squarePiece.moved && !blackKing.squarePiece?.moved) {
+      blackQueenCastle = true;
+    }
+  }
+
+  if (
+    blackKingRook.squarePiece?.type === "rook" &&
+    blackKing.squarePiece?.type === "king"
+  ) {
+    if (!blackKingRook.squarePiece.moved && !blackKing.squarePiece?.moved) {
+      blackKingCastle = true;
+    }
+  }
+
+  if (
+    whiteQueenRook.squarePiece?.type === "rook" &&
+    whiteKing.squarePiece?.type === "king"
+  ) {
+    if (!whiteQueenRook.squarePiece.moved && !whiteKing.squarePiece?.moved) {
+      whiteQueenCastle = true;
+    }
+  }
+
+  if (
+    whiteKingRook.squarePiece?.type === "rook" &&
+    whiteKing.squarePiece?.type === "king"
+  ) {
+    if (!whiteKingRook.squarePiece.moved && !whiteKing.squarePiece?.moved) {
+      whiteKingCastle = true;
+    }
+  }
+
+  if (
+    !blackQueenCastle &&
+    !blackKingCastle &&
+    !whiteQueenCastle &&
+    !whiteKingCastle
+  ) {
+    fenComplete += "- ";
+  } else {
+    if (whiteKingCastle) {
+      fenComplete += "K";
+    }
+    if (whiteQueenCastle) {
+      fenComplete += "Q";
+    }
+    if (blackKingCastle) {
+      fenComplete += "k";
+    }
+    if (blackQueenCastle) {
+      fenComplete += "q";
+    }
+
+    fenComplete += " ";
+  }
+
+  // board.flat().forEach((square) => {
+  //   if(square.enPassant)
+  // })
+
+  let enPassantAvailable = false;
+  board.flat().forEach((square) => {
+    if (square.enPassantTake) {
+      fenComplete += square.coordinate;
+      enPassantAvailable = true;
+    }
+  });
+  if (!enPassantAvailable) fenComplete += "-";
+  fenComplete += " ";
+
+  fenComplete += halfClock + " ";
+  fenComplete += turns;
+
+  return fenComplete;
 }
 
 //TODO player turns

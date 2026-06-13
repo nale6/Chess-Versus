@@ -15,7 +15,7 @@ import {
   ChessKing,
   SquarePi,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   autoRankUp,
   bishopMoves,
@@ -31,6 +31,7 @@ import {
   simulateMove,
   staleCheckMate,
 } from "./pieceMoves";
+import { completeFEN, coordinates, fenFormat } from "./chessFunctions";
 
 type SquareProps = {
   square: Square;
@@ -264,8 +265,11 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [playerTurn, setPlayerTurn] = useState<Color>("white");
   const [legalMove, setLegalMove] = useState<Move[]>([]);
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
-  const [inCheck, setInCheck] = useState(false);
+  // const [inCheck, setInCheck] = useState(false);
   const [checkingMoves, setCheckingMoves] = useState<Move[]>([]);
+  const turnRef = useRef(1);
+  const halfRef = useRef(0);
+  const checkRef = useRef(false);
   // ^^^ Not really using last 4 but keeping them for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
@@ -371,8 +375,19 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     } else if (playerTurn === "black") {
       setPlayerTurn("white");
     }
+    const color = playerTurn === "white" ? "b" : "w";
     autoRankUp(playerTurn, board);
     removeCastle();
+    turnRef.current++;
+    console.log(
+      completeFEN(
+        board,
+        fenFormat(board),
+        color,
+        halfRef.current,
+        turnRef.current,
+      ),
+    );
   }
 
   function removeCastle(): void {
@@ -395,7 +410,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     handleClick(square);
     onlyMoveOnTurn(square);
     //TODO need to get the moves checking the opponent
-    setInCheck(check(playerTurn, board));
+    checkRef.current = check(playerTurn, board);
   }
 
   //TODO: Only move on legal moves / selected squares as legal moves
@@ -437,6 +452,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               prevSquare.squarePiece!.moved = true;
             }
             prevSquare.squarePiece = null;
+            halfRef.current = 0;
             onSuccessfulMove();
           }
           //If in check, simulate move, if still in check, unhighlight and don't use move, else use move
@@ -455,7 +471,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               unHighlight();
               return;
             } else {
-              setInCheck(false);
+              checkRef.current = false;
               setClicked(false);
               square.squarePiece = storePiece;
               prevSquare!.squarePiece = null;
@@ -540,12 +556,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             console.log("happened");
           }
           console.log(square.enPassant);
+          if (storePiece?.type === "pawn") {
+            halfRef.current = 0;
+          } else {
+            halfRef.current++;
+          }
           onSuccessfulMove();
         }
       }
       //Same thing, if it's in check, unhighlight all and forget move, else continue with move
       else if (square.highlighted && storePiece !== null && playerIsInCheck) {
-        setInCheck(simulateMove(prevSquare!, board, square, playerTurn));
+        checkRef.current = simulateMove(prevSquare!, board, square, playerTurn);
         const stillInCheck = simulateMove(
           prevSquare!,
           board,
@@ -559,9 +580,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           unHighlight();
           return;
         } else {
-          setInCheck(false);
+          if (storePiece.type === "pawn") {
+            halfRef.current = 0;
+          } else {
+            halfRef.current++;
+          }
+          checkRef.current = false;
           setClicked(false);
           square.squarePiece = storePiece;
+
           prevSquare!.squarePiece = null;
           prevSquare!.selected = false;
           setPrevSquare(null);
@@ -580,6 +607,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
   }
 
+  useEffect(() => {
+    coordinates(board);
+  }, []);
+
+  useEffect(() => {}, [checkRef.current]);
+
   return (
     <div className="grid grid-cols-8 w-[80vw] md:w-[90vw] lg:w-[95v] max-w-170 aspect-square shadow-2xl">
       {board.flat().map((square) => (
@@ -592,11 +625,3 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     </div>
   );
 }
-
-// type pieceProps = {
-//   color: "white" | "black";
-// };
-
-// export function pawnTSX
-
-// TODO finish function for moving pieces. Also need to do valid/legal moves with certain rules such as castling.

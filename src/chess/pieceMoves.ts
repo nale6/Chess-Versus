@@ -396,6 +396,8 @@ export function kingMoves(
     let i = 1;
 
     while (e) {
+      const column = nextCol + i;
+      if (column >= 8) break;
       if (
         chessboard[nextRow][nextCol + i].squarePiece?.type === "rook" &&
         chessboard[nextRow][nextCol + i].squarePiece!.moved === false
@@ -427,6 +429,8 @@ export function kingMoves(
     let i = 1;
 
     while (w) {
+      const column = nextCol - i;
+      if (column < 0) break;
       if (
         chessboard[nextRow][nextCol - i].squarePiece?.type === "rook" &&
         chessboard[nextRow][nextCol - i].squarePiece!.moved === false
