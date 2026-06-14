@@ -39,15 +39,14 @@ export function createEmptyBoard(): ChessBoard {
   return chessboard;
 }
 
-//   const darkTile = (row + col) % 2 === 1;
-//   const isTopLeft = row === 0 && col === 0 ? true : false;
-//   const isTopRight = row === 0 && col === 7 ? true : false;
-//   const isBottomLeft = row === 7 && col === 0 ? true : false;
-//   const isBottomRight = row === 7 && col === 7 ? true : false;
-
 export function populateBoard(chessboard: ChessBoard): ChessBoard {
   return chessboard.map((row, rowi) => {
     return row.map((square, coli) => {
+      square.squarePiece = null;
+      square.highlighted = false;
+      square.selected = false;
+      square.enPassant = false;
+
       //Black Pawn
       if (rowi === 1) {
         square.squarePiece = {

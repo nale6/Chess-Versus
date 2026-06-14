@@ -61,7 +61,6 @@ export function pawnMoves(
       move.push({ row: nextRow, col: column - 1 });
     }
   }
-
   return move;
 }
 
@@ -534,18 +533,25 @@ export function knightMoves(
 export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   const move: Move[] = [];
   chessboard.flat().forEach((sqr) => {
-    if (sqr.squarePiece && sqr.squarePiece.color !== color) {
+    if (sqr.squarePiece && sqr.squarePiece.color === color) {
       switch (sqr.squarePiece.type) {
         case "pawn":
-          const dir = sqr.squarePiece.color === "white" ? -1 : 1;
-          if (sqr.col > 0 && sqr.col < 7) {
-            move.push({ row: sqr.row + dir, col: sqr.col - 1 });
-            move.push({ row: sqr.row + dir, col: sqr.col + 1 });
-          } else if (sqr.col === 0) {
-            move.push({ row: sqr.row + dir, col: sqr.col + 1 });
-          } else if (sqr.col === 7) {
-            move.push({ row: sqr.row + dir, col: sqr.col - 1 });
-          }
+          // const dir = sqr.squarePiece.color === "white" ? -1 : 1;
+          // if (sqr.col > 0 && sqr.col < 7) {
+          //   if (!sqr.squarePiece.moved) {
+          //     move.push({ row: sqr.row + dir * 2, col: sqr.col });
+          //   }
+          //   move.push({ row: sqr.row + dir, col: sqr.col - 1 });
+          //   move.push({ row: sqr.row + dir, col: sqr.col + 1 });
+          // } else if (sqr.col === 0) {
+          //   move.push({ row: sqr.row + dir, col: sqr.col + 1 });
+          // } else if (sqr.col === 7) {
+          //   move.push({ row: sqr.row + dir, col: sqr.col - 1 });
+          // }
+          const pawnMove = pawnMoves(sqr.squarePiece, sqr, chessboard);
+          pawnMove.forEach((pMove) => {
+            move.push(pMove);
+          });
           break;
 
         case "rook":
@@ -591,6 +597,63 @@ export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   return move;
 }
 
+// export function getMovesPawnForward(
+//   color: Color,
+//   chessboard: ChessBoard,
+// ): Move[] {
+//   const move: Move[] = [];
+//   chessboard.flat().forEach((sqr) => {
+//     if (sqr.squarePiece && sqr.squarePiece.color !== color) {
+//       switch (sqr.squarePiece.type) {
+//         case "pawn":
+//           const dir = sqr.squarePiece.color === "white" ? -1 : 1;
+//           move.push({ row: sqr.row + dir, col: sqr.col });
+
+//           break;
+
+//         case "rook":
+//           const rookMove = rookMoves(sqr.squarePiece, sqr, chessboard);
+//           rookMove.forEach((rMove) => {
+//             move.push(rMove);
+//           });
+//           break;
+
+//         case "bishop":
+//           const bishopMove = bishopMoves(sqr.squarePiece, sqr, chessboard);
+//           bishopMove.forEach((bMove) => {
+//             move.push(bMove);
+//           });
+//           break;
+
+//         case "queen":
+//           const queenMove = queenMoves(sqr.squarePiece, sqr, chessboard);
+//           queenMove.forEach((qMove) => {
+//             move.push(qMove);
+//           });
+//           break;
+
+//         case "knight":
+//           const knightMove = knightMoves(sqr.squarePiece, sqr, chessboard);
+//           knightMove.forEach((knMove) => {
+//             move.push(knMove);
+//           });
+//           break;
+
+//         case "king":
+//           const kingMove = kingMoves(sqr.squarePiece, sqr, chessboard);
+//           kingMove.forEach((kMove) => {
+//             move.push(kMove);
+//           });
+//           break;
+
+//         default:
+//           break;
+//       }
+//     }
+//   });
+//   return move;
+// }
+
 export function filterLegalMoves(
   illegalMoves: Move[],
   allMoves: Move[],
@@ -627,17 +690,20 @@ export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
 export function check(color: Color, chessboard: ChessBoard): boolean {
   let inCheck = false;
   const checkingMoves: Move[] = [];
-  const moves: Move[] = getMoves(color, chessboard);
+  const enemyColor = color === "white" ? "black" : "white";
+  const moves: Move[] = getMoves(enemyColor, chessboard);
   moves.forEach((move) => {
-    if (chessboard[move.row][move.col].squarePiece?.type === "king") {
-      //DEBUG
-      console.log(
-        chessboard[move.row][move.col].squarePiece?.color,
-        "'s king is in check and needs to move.",
-      );
-      console.log(move);
-      inCheck = true;
-      checkingMoves.push(move);
+    if (move.row >= 0 && move.row < 8 && move.col >= 0 && move.col < 8) {
+      if (chessboard[move.row][move.col].squarePiece?.type === "king") {
+        //DEBUG
+        // console.log(
+        //   chessboard[move.row][move.col].squarePiece?.color,
+        //   "'s king is in check and needs to move.",
+        // );
+        // console.log(move);
+        inCheck = true;
+        checkingMoves.push(move);
+      }
     }
   });
   return inCheck;
@@ -708,4 +774,64 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
   }
 }
 
-//TODO draw on repeated move 3x
+export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
+  //Use for instead of foreach to immediately return out of hasLegalMove
+  for (const square of chessboard.flat()) {
+    if (!square.squarePiece || square.squarePiece.color !== color) continue;
+
+    let candidates: Move[] = [];
+    switch (square.squarePiece.type) {
+      case "pawn":
+        candidates = pawnMoves(square.squarePiece, square, chessboard);
+        break;
+      case "rook":
+        candidates = rookMoves(square.squarePiece, square, chessboard);
+        break;
+      case "bishop":
+        candidates = bishopMoves(square.squarePiece, square, chessboard);
+        break;
+      case "queen":
+        candidates = queenMoves(square.squarePiece, square, chessboard);
+        break;
+      case "knight":
+        candidates = knightMoves(square.squarePiece, square, chessboard);
+        break;
+      case "king":
+        candidates = kingMoves(square.squarePiece, square, chessboard);
+        break;
+    }
+    for (const move of candidates) {
+      if (
+        !simulateMove(
+          square,
+          chessboard,
+          { ...square, row: move.row, col: move.col },
+          color,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function getGameState(color: Color, chessboard: ChessBoard): string {
+  if (hasLegalMove(color, chessboard)) return "ongoing";
+  else if (check(color, chessboard)) return "checkmate";
+  else return "stalemate";
+}
+
+export function isFiftyMoveDraw(halfMoves: number): boolean {
+  return halfMoves >= 100;
+}
+
+export function isThreeRepetitionDraw(fenHistory: string[]): boolean {
+  const counts = new Map<string, number>();
+  for (const fen of fenHistory) {
+    const position = fen.split(" ")[0];
+    counts.set(position, (counts.get(position) ?? 0) + 1);
+    if (counts.get(position)! >= 3) return true;
+  }
+  return false;
+}

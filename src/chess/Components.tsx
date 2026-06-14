@@ -6,6 +6,7 @@ import type {
   Move,
   Color,
 } from "./chessTypes";
+import type { GameState } from "../../components/modals/gameover-modal";
 import {
   ChessPawn,
   ChessRook,
@@ -22,7 +23,10 @@ import {
   check,
   checkMoves,
   filterLegalMoves,
+  getGameState,
   getMoves,
+  isFiftyMoveDraw,
+  isThreeRepetitionDraw,
   kingMoves,
   knightMoves,
   pawnMoves,
@@ -31,7 +35,13 @@ import {
   simulateMove,
   staleCheckMate,
 } from "./pieceMoves";
-import { completeFEN, coordinates, fenFormat } from "./chessFunctions";
+import {
+  completeFEN,
+  coordinates,
+  fenFormat,
+  populateBoard,
+} from "./chessFunctions";
+import { GameOverModal } from "../../components/modals/gameover-modal";
 
 type SquareProps = {
   square: Square;
@@ -41,13 +51,9 @@ type SquareProps = {
 //TODO: Check if sizing is fine for really small viewports, especially on mobile
 //TODO: Mirror for other player's pov (7 - row / col should work)
 export function SquareTSX({ square, onClick }: SquareProps) {
-  // const [board, setBoard] = useState<ChessBoard>();
-  // square.selected = selected;
-
   return (
     <div
       onClick={() => {
-        // selectClick(square);
         onClick(square);
       }}
       className={`flex justify-center items-center select-none
@@ -263,14 +269,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
   const [playerTurn, setPlayerTurn] = useState<Color>("white");
-  const [legalMove, setLegalMove] = useState<Move[]>([]);
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
+  const [gameState, setGameState] = useState<GameState>("ongoing");
+  const [winner, setWinner] = useState<Color | undefined>(undefined);
+  const showGameOverModal = gameState !== "ongoing";
   // const [inCheck, setInCheck] = useState(false);
-  const [checkingMoves, setCheckingMoves] = useState<Move[]>([]);
   const turnRef = useRef(1);
   const halfRef = useRef(0);
   const checkRef = useRef(false);
-  // ^^^ Not really using last 4 but keeping them for now, might use later for readability or to send and receive from chess APIs or convert to FEN format etc
+  const fenRef = useRef<string[]>([]);
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
     if (square && square.squarePiece!.type === "pawn") {
@@ -287,15 +294,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     if (square && square.squarePiece!.type === "king") {
       moves = kingMoves(square.squarePiece!, square, board);
-      let enemyMovement = getMoves(square.squarePiece!.color, board);
-      let legalMoves = filterLegalMoves(enemyMovement, moves);
-      //TODO condense lower part/make it readable
-      let blackwhite: Color = "black";
-      if (square.squarePiece?.color === "black") blackwhite = "white";
-      let myMoves = getMoves(blackwhite, board);
-      let filteredMyMoves = filterLegalMoves(enemyMovement, myMoves);
+      const playerColor = square.squarePiece!.color;
+      const enemyColor = playerColor === "white" ? "black" : "white";
+      const playerMovement = getMoves(playerColor, board);
+      const enemyMovement = getMoves(enemyColor, board);
+      const legalMoves = filterLegalMoves(enemyMovement, moves);
+      const filteredMyMoves = filterLegalMoves(enemyMovement, playerMovement);
       if (filteredMyMoves.length === 0) {
-        staleCheckMate(square.squarePiece!.color, board);
+        staleCheckMate(playerColor, board);
       }
       return legalMoves;
     }
@@ -370,16 +376,22 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }
 
   function onSuccessfulMove(): void {
-    if (playerTurn === "white") {
-      setPlayerTurn("black");
-    } else if (playerTurn === "black") {
-      setPlayerTurn("white");
-    }
+    const nextPlayer = playerTurn === "white" ? "black" : "white";
+    setPlayerTurn(nextPlayer);
     const color = playerTurn === "white" ? "b" : "w";
     autoRankUp(playerTurn, board);
     removeCastle();
     turnRef.current++;
-    console.log(
+    // console.log(
+    //   completeFEN(
+    //     board,
+    //     fenFormat(board),
+    //     color,
+    //     halfRef.current,
+    //     turnRef.current,
+    //   ),
+    // );
+    fenRef.current.push(
       completeFEN(
         board,
         fenFormat(board),
@@ -388,6 +400,22 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         turnRef.current,
       ),
     );
+    const state = getGameState(nextPlayer, board);
+    //TODO: End of game handler vvv
+    if (state === "checkmate") {
+      console.log(`Checkmate, ${playerTurn} wins.`);
+      setWinner(playerTurn);
+      setGameState("checkmate");
+    } else if (state === "stalemate") {
+      console.log("Draw by stalemate.");
+      setGameState("stalemate");
+    } else if (isFiftyMoveDraw(halfRef.current)) {
+      console.log("Draw by 50 move rule.");
+      setGameState("draw");
+    } else if (isThreeRepetitionDraw(fenRef.current)) {
+      console.log("Draw by repetition.");
+      setGameState("draw");
+    }
   }
 
   function removeCastle(): void {
@@ -409,11 +437,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function parentClick(square: Square): void {
     handleClick(square);
     onlyMoveOnTurn(square);
-    //TODO need to get the moves checking the opponent
     checkRef.current = check(playerTurn, board);
   }
 
-  //TODO: Only move on legal moves / selected squares as legal moves
+  //TODO: Proper highlighting
   function handleClick(square: Square): void {
     const playerIsInCheck = check(playerTurn, board);
     //Initial click on empty square
@@ -453,6 +480,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             }
             prevSquare.squarePiece = null;
             halfRef.current = 0;
+            fenRef.current = [];
             onSuccessfulMove();
           }
           //If in check, simulate move, if still in check, unhighlight and don't use move, else use move
@@ -553,9 +581,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           if (square.enPassantTake && storePiece.type === "pawn") {
             enPassant(board, square, playerTurn);
             removeEnPassant();
-            console.log("happened");
+            // console.log("happened");
           }
-          console.log(square.enPassant);
+          // console.log(square.enPassant);
           if (storePiece?.type === "pawn") {
             halfRef.current = 0;
           } else {
@@ -607,11 +635,31 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
   }
 
+  function handleRematch(board: ChessBoard): void {
+    const newBoard = populateBoard(structuredClone(board));
+
+    board.forEach((rank, i) => {
+      rank.forEach((square, j) => {
+        Object.assign(square, newBoard[i][j]);
+      });
+    });
+
+    halfRef.current = 0;
+    turnRef.current = 1;
+    checkRef.current = false;
+    fenRef.current = [];
+
+    setGameState("ongoing");
+    setWinner(undefined);
+    setPlayerTurn("white");
+    setClicked(false);
+    setStorePiece(null);
+    setPrevSquare(null);
+  }
+
   useEffect(() => {
     coordinates(board);
   }, []);
-
-  useEffect(() => {}, [checkRef.current]);
 
   return (
     <div className="grid grid-cols-8 w-[80vw] md:w-[90vw] lg:w-[95v] max-w-170 aspect-square shadow-2xl">
@@ -622,6 +670,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           square={square}
         />
       ))}
+      {showGameOverModal && (
+        <GameOverModal
+          gameState={gameState}
+          winner={winner}
+          onRematch={() => handleRematch(board)}
+          onClose={() => setGameState("ongoing")}
+        ></GameOverModal>
+      )}
     </div>
   );
 }
