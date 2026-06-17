@@ -1,8 +1,6 @@
-import { useState } from "react";
 import type { Piece, Move, Square, ChessBoard, Color } from "./chessTypes";
 
 //TODO when pawn reaches end, can upgrade piece to knight, bishop, rook or queen
-//Add en passante
 export function pawnMoves(
   piece: Piece,
   square: Square,
@@ -61,6 +59,40 @@ export function pawnMoves(
       move.push({ row: nextRow, col: column - 1 });
     }
   }
+  return move;
+}
+
+//Returns only diagonal attacks for calculating valid moves
+export function pawnAttack(
+  piece: Piece,
+  square: Square,
+  chessboard: ChessBoard,
+): Move[] {
+  const move: Move[] = [];
+  //Move up or down based on piece color
+  const direction = piece.color === "white" ? -1 : 1;
+  //Add direction value to row to go up or down
+  const nextRow = square.row + direction;
+  //Pawns stay in same column unless they can take or en passant rule applies (check if that's what it's called)
+  const column = square.col;
+
+  if (column - 1 >= 0) {
+    if (
+      chessboard[nextRow][column - 1].squarePiece &&
+      piece.color !== chessboard[nextRow][column - 1].squarePiece?.color
+    ) {
+      move.push({ row: nextRow, col: column - 1 });
+    }
+  }
+  if (column + 1 < 8) {
+    if (
+      chessboard[nextRow][column + 1].squarePiece &&
+      piece.color !== chessboard[nextRow][column + 1].squarePiece?.color
+    ) {
+      move.push({ row: nextRow, col: column + 1 });
+    }
+  }
+
   return move;
 }
 
@@ -211,7 +243,6 @@ export function bishopMoves(
     nextRow--;
     nextColumn--;
   }
-  // vvvvv Without resetting nextrow and nextcolumn this code makes it bounce from the left board, potential later mechanic
   nextRow = square.row;
   nextColumn = square.col;
   while (northE) {
@@ -303,6 +334,7 @@ export function kingMoves(
   piece: Piece,
   square: Square,
   chessboard: ChessBoard,
+  simulation: boolean = false,
 ): Move[] {
   const move: Move[] = [];
 
@@ -391,7 +423,7 @@ export function kingMoves(
   }
 
   //Castling
-  if (square.squarePiece!.moved === false) {
+  if (!simulation && square.squarePiece!.moved === false) {
     let i = 1;
 
     while (e) {
@@ -407,11 +439,14 @@ export function kingMoves(
           castle: true,
           castleDir: "right",
         });
+        break;
       }
       if (chessboard[nextRow][nextCol + i].squarePiece?.color === piece.color) {
         e = false;
       } else if (chessboard[nextRow][nextCol + i].squarePiece === null) {
         i++;
+      } else {
+        e = false;
       }
       if (square.squarePiece!.color === "white" && i === 4) {
         e = false;
@@ -424,7 +459,7 @@ export function kingMoves(
   }
 
   //Castling
-  if (square.squarePiece!.moved === false) {
+  if (!simulation && square.squarePiece!.moved === false) {
     let i = 1;
 
     while (w) {
@@ -440,11 +475,14 @@ export function kingMoves(
           castle: true,
           castleDir: "left",
         });
+        break;
       }
       if (chessboard[nextRow][nextCol - i].squarePiece?.color === piece.color) {
         w = false;
       } else if (chessboard[nextRow][nextCol - i].squarePiece === null) {
         i++;
+      } else {
+        w = false;
       }
       if (square.squarePiece!.color === "white" && i === 5) {
         w = false;
@@ -455,6 +493,7 @@ export function kingMoves(
       }
     }
   }
+
   return move;
 }
 
@@ -530,6 +569,7 @@ export function knightMoves(
   return move;
 }
 
+//Grabs all moves from one player
 export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   const move: Move[] = [];
   chessboard.flat().forEach((sqr) => {
@@ -583,6 +623,63 @@ export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
           break;
 
         case "king":
+          const kingMove = kingMoves(sqr.squarePiece, sqr, chessboard, true);
+          kingMove.forEach((kMove) => {
+            move.push(kMove);
+          });
+          break;
+
+        default:
+          break;
+      }
+    }
+  });
+  return move;
+}
+
+//Grabs ENEMY moves, only change is pawns just have their atk movement
+export function getEnemyMoves(color: Color, chessboard: ChessBoard): Move[] {
+  const move: Move[] = [];
+  chessboard.flat().forEach((sqr) => {
+    if (sqr.squarePiece && sqr.squarePiece.color !== color) {
+      switch (sqr.squarePiece.type) {
+        case "pawn":
+          const pawnMove = pawnAttack(sqr.squarePiece, sqr, chessboard);
+          pawnMove.forEach((pMove) => {
+            move.push(pMove);
+          });
+          // pawnAttack(sqr.squarePiece, sqr, chessboard).forEach((m) => move.push(m));
+          break;
+
+        case "rook":
+          const rookMove = rookMoves(sqr.squarePiece, sqr, chessboard);
+          rookMove.forEach((rMove) => {
+            move.push(rMove);
+          });
+          break;
+
+        case "bishop":
+          const bishopMove = bishopMoves(sqr.squarePiece, sqr, chessboard);
+          bishopMove.forEach((bMove) => {
+            move.push(bMove);
+          });
+          break;
+
+        case "queen":
+          const queenMove = queenMoves(sqr.squarePiece, sqr, chessboard);
+          queenMove.forEach((qMove) => {
+            move.push(qMove);
+          });
+          break;
+
+        case "knight":
+          const knightMove = knightMoves(sqr.squarePiece, sqr, chessboard);
+          knightMove.forEach((knMove) => {
+            move.push(knMove);
+          });
+          break;
+
+        case "king":
           const kingMove = kingMoves(sqr.squarePiece, sqr, chessboard);
           kingMove.forEach((kMove) => {
             move.push(kMove);
@@ -597,63 +694,7 @@ export function getMoves(color: Color, chessboard: ChessBoard): Move[] {
   return move;
 }
 
-// export function getMovesPawnForward(
-//   color: Color,
-//   chessboard: ChessBoard,
-// ): Move[] {
-//   const move: Move[] = [];
-//   chessboard.flat().forEach((sqr) => {
-//     if (sqr.squarePiece && sqr.squarePiece.color !== color) {
-//       switch (sqr.squarePiece.type) {
-//         case "pawn":
-//           const dir = sqr.squarePiece.color === "white" ? -1 : 1;
-//           move.push({ row: sqr.row + dir, col: sqr.col });
-
-//           break;
-
-//         case "rook":
-//           const rookMove = rookMoves(sqr.squarePiece, sqr, chessboard);
-//           rookMove.forEach((rMove) => {
-//             move.push(rMove);
-//           });
-//           break;
-
-//         case "bishop":
-//           const bishopMove = bishopMoves(sqr.squarePiece, sqr, chessboard);
-//           bishopMove.forEach((bMove) => {
-//             move.push(bMove);
-//           });
-//           break;
-
-//         case "queen":
-//           const queenMove = queenMoves(sqr.squarePiece, sqr, chessboard);
-//           queenMove.forEach((qMove) => {
-//             move.push(qMove);
-//           });
-//           break;
-
-//         case "knight":
-//           const knightMove = knightMoves(sqr.squarePiece, sqr, chessboard);
-//           knightMove.forEach((knMove) => {
-//             move.push(knMove);
-//           });
-//           break;
-
-//         case "king":
-//           const kingMove = kingMoves(sqr.squarePiece, sqr, chessboard);
-//           kingMove.forEach((kMove) => {
-//             move.push(kMove);
-//           });
-//           break;
-
-//         default:
-//           break;
-//       }
-//     }
-//   });
-//   return move;
-// }
-
+//Filters legal moves by comparing each
 export function filterLegalMoves(
   illegalMoves: Move[],
   allMoves: Move[],
@@ -670,7 +711,6 @@ export function filterLegalMoves(
   return legalMoves;
 }
 
-//TODO: This only works if enemy has NO legal moves left. Need another function exploring if opponent is checkmated DESPITE having legal moves.
 //TODO: Of course this also means that there needs to be a check logic (done) and logic that only allows moves that would deny checkmate if possible.
 export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
   let checkmate = false;
@@ -687,6 +727,7 @@ export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
   console.log("Checkmate true stalemate false: ", checkmate);
 }
 
+//Checks if given board has a king in check
 export function check(color: Color, chessboard: ChessBoard): boolean {
   let inCheck = false;
   const checkingMoves: Move[] = [];
@@ -733,6 +774,7 @@ export function checkMoves(
   return legalMoves;
 }
 
+//Simulates move and returns if would be in check, used to prevent discovered check moves
 export function simulateMove(
   prevSquare: Square,
   chessboard: ChessBoard,
@@ -745,6 +787,7 @@ export function simulateMove(
   return check(color, clone);
 }
 
+//TODO modal that allows player to choose what to rank up, defaulting to queen for now. This function selects what type to rank up to, add more types and add parameter to take in piece type
 export function rankUp(square: Square): void {
   square.squarePiece!.type = "queen";
 }
@@ -774,8 +817,10 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
   }
 }
 
+//Finds and returns if there is any legal moves for color's side
 export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
-  //Use for instead of foreach to immediately return out of hasLegalMove
+  let moveCount = 0;
+
   for (const square of chessboard.flat()) {
     if (!square.squarePiece || square.squarePiece.color !== color) continue;
 
@@ -797,10 +842,19 @@ export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
         candidates = knightMoves(square.squarePiece, square, chessboard);
         break;
       case "king":
-        candidates = kingMoves(square.squarePiece, square, chessboard);
+        candidates = kingMoves(square.squarePiece, square, chessboard, true);
         break;
     }
+
+    const MAX_MOVES = 500;
+
     for (const move of candidates) {
+      moveCount++;
+      if (moveCount > MAX_MOVES) {
+        console.error("hasLegalMove infinite recursion");
+        return true;
+      }
+      // console.log("testing move:", moveCount, move);
       if (
         !simulateMove(
           square,
@@ -809,23 +863,29 @@ export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
           color,
         )
       ) {
+        // console.log("legal move found:", move);
         return true;
       }
     }
   }
+  // console.log("no legal moves found");
   return false;
 }
 
+//Checks if game should be over or ongoing
 export function getGameState(color: Color, chessboard: ChessBoard): string {
-  if (hasLegalMove(color, chessboard)) return "ongoing";
+  if (hasLegalMove(color, chessboard))
+    return "ongoing"; // if no legal moves then gg
   else if (check(color, chessboard)) return "checkmate";
   else return "stalemate";
 }
 
+//Should almost never happen in a real game, if 50 moves from BOTH players are made and no progress is made on board, it's a draw
 export function isFiftyMoveDraw(halfMoves: number): boolean {
   return halfMoves >= 100;
 }
 
+//Checks the fen history ref and if the board state is the same for last 3 positions then it's a draw.
 export function isThreeRepetitionDraw(fenHistory: string[]): boolean {
   const counts = new Map<string, number>();
   for (const fen of fenHistory) {
@@ -835,3 +895,4 @@ export function isThreeRepetitionDraw(fenHistory: string[]): boolean {
   }
   return false;
 }
+

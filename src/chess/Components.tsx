@@ -1,11 +1,4 @@
-import type {
-  Square,
-  ChessBoard,
-  Piece,
-  PieceType,
-  Move,
-  Color,
-} from "./chessTypes";
+import type { Square, ChessBoard, Piece, Move, Color } from "./chessTypes";
 import type { GameState } from "../../components/modals/gameover-modal";
 import {
   ChessPawn,
@@ -14,15 +7,14 @@ import {
   ChessBishop,
   ChessQueen,
   ChessKing,
-  SquarePi,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import {
   autoRankUp,
   bishopMoves,
   check,
-  checkMoves,
   filterLegalMoves,
+  getEnemyMoves,
   getGameState,
   getMoves,
   isFiftyMoveDraw,
@@ -42,15 +34,26 @@ import {
   populateBoard,
 } from "./chessFunctions";
 import { GameOverModal } from "../../components/modals/gameover-modal";
+import { difficultyToDepth, getStockfishMove, uciToSquare } from "./stockFish";
+import {
+  GameSetupModal,
+  type GameConfig,
+} from "../../components/modals/gamemode-modal";
 
 type SquareProps = {
   square: Square;
   onClick: (square: Square) => void;
+  playerColor: Color;
 };
 
 //TODO: Check if sizing is fine for really small viewports, especially on mobile
 //TODO: Mirror for other player's pov (7 - row / col should work)
-export function SquareTSX({ square, onClick }: SquareProps) {
+export function SquareTSX({ square, onClick, playerColor }: SquareProps) {
+  const files =
+    playerColor === "black"
+      ? ["H", "G", "F", "E", "D", "C", "B", "A"]
+      : ["A", "B", "C", "D", "E", "F", "G", "H"];
+
   return (
     <div
       onClick={() => {
@@ -106,44 +109,124 @@ export function SquareTSX({ square, onClick }: SquareProps) {
           1
         </div>
       )}
-      {square.row === 7 && square.col === 7 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 7 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           H
         </div>
       )}
-      {square.row === 7 && square.col === 6 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 6 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           G
         </div>
       )}
-      {square.row === 7 && square.col === 5 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 5 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           F
         </div>
       )}
-      {square.row === 7 && square.col === 4 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 4 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           E
         </div>
       )}
-      {square.row === 7 && square.col === 3 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 3 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           D
         </div>
       )}
-      {square.row === 7 && square.col === 2 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 2 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           C
         </div>
       )}
-      {square.row === 7 && square.col === 1 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 1 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           B
         </div>
       )}
-      {square.row === 7 && square.col === 0 && (
+      {square.row === 7 && playerColor !== "black" && square.col === 0 && (
         <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
           A
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 7 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          H
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 6 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          G
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 5 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          F
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 4 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          E
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 3 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          D
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 2 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          C
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 1 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          B
+        </div>
+      )}
+      {square.row === 7 && playerColor !== "black" && square.col === 0 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mb-[-15%] lg:mb-[-13%] xl:mb-[-10%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          A
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 7 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          A
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 6 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          B
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 5 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          C
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 4 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          D
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 3 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          E
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 2 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          F
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 1 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          G
+        </div>
+      )}
+      {square.row === 0 && playerColor === "black" && square.col === 0 && (
+        <div className="absolute mb-[-20%] sm:mb-[-18%] md:mt-[0%] lg:mt-[-3%] xl:mt-[-8%] text-2xl sm:text-3xl md:text-4xl lg:text-5xl pointer-events-none">
+          H
         </div>
       )}
       {square.squarePiece &&
@@ -268,16 +351,25 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [click, setClicked] = useState(false);
   const [storePiece, setStorePiece] = useState<Piece | null>(null);
   const [prevSquare, setPrevSquare] = useState<Square | null>(null);
-  const [playerTurn, setPlayerTurn] = useState<Color>("white");
   const [highlightedSquare, setHighlightedSquares] = useState<Square[]>([]);
   const [gameState, setGameState] = useState<GameState>("ongoing");
   const [winner, setWinner] = useState<Color | undefined>(undefined);
   const showGameOverModal = gameState !== "ongoing";
-  // const [inCheck, setInCheck] = useState(false);
+  const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
+  const [, forceRender] = useReducer((x) => x + 1, 0);
+  const currentTurnRef = useRef<Color>("white");
   const turnRef = useRef(1);
   const halfRef = useRef(0);
   const checkRef = useRef(false);
   const fenRef = useRef<string[]>([]);
+  const playerRef = useRef<Color>("white");
+  const vsAIRef = useRef<boolean>(false);
+  const colorAIRef = useRef<Color | undefined>(undefined);
+  const aiResponseWaitRef = useRef<boolean>(false);
+  const firstMoveRef = useRef<boolean>(true);
+  const enPassantRef = useRef<string[]>([]);
+  const enPassantHistoryRef = useRef<string[]>([]);
+
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
     if (square && square.squarePiece!.type === "pawn") {
@@ -295,9 +387,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     if (square && square.squarePiece!.type === "king") {
       moves = kingMoves(square.squarePiece!, square, board);
       const playerColor = square.squarePiece!.color;
-      const enemyColor = playerColor === "white" ? "black" : "white";
       const playerMovement = getMoves(playerColor, board);
-      const enemyMovement = getMoves(enemyColor, board);
+      const enemyMovement = getEnemyMoves(playerColor, board);
+      console.log(enemyMovement);
       const legalMoves = filterLegalMoves(enemyMovement, moves);
       const filteredMyMoves = filterLegalMoves(enemyMovement, playerMovement);
       if (filteredMyMoves.length === 0) {
@@ -324,7 +416,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       }
       if (move.enPassant) {
         square!.enPassant = move.enPassant;
-        let direction = playerTurn === "white" ? 1 : -1;
+        let direction = currentTurnRef.current === "white" ? 1 : -1;
         board[square!.row + direction][square!.col].enPassantTake = true;
       }
     });
@@ -366,20 +458,67 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }
 
   function onlyMoveOnTurn(square: Square): void {
-    if (square.squarePiece?.color !== playerTurn) {
+    if (square.squarePiece?.color !== currentTurnRef.current) {
       setClicked(false);
       square.highlighted = false;
       unHighlight();
       unSelect();
-      console.log("Not their turn");
+      // console.log("Not their turn");
     }
   }
 
+  //Function that grabs latest unique en passant square
+  function latestEnPassant(
+    board: ChessBoard,
+    enPassantRef: string[],
+    enPassantHistoryRef: string[],
+  ): string | undefined {
+    let latest = false;
+    if (enPassantRef.length > 0) {
+      enPassantRef.forEach((_) => {
+        enPassantRef.pop();
+      });
+    }
+    const add: string[] = [];
+
+    if (enPassantHistoryRef.length === 0) {
+      board.flat().forEach((sqr) => {
+        if (sqr.enPassantTake) {
+          add.push(sqr.coordinate);
+          latest = true;
+        }
+      });
+      enPassantHistoryRef.push(add[0]);
+      return add[0];
+    }
+
+    board.flat().forEach((sqr) => {
+      if (sqr.enPassantTake) {
+        const seen = enPassantHistoryRef.some((ref) => ref === sqr.coordinate);
+        if (!seen) {
+          add.push(sqr.coordinate);
+          latest = true;
+        }
+      }
+    });
+    if (latest === false) {
+      return undefined;
+    }
+    enPassantHistoryRef.push(add[0]);
+    enPassantRef.push(add[0]);
+    return enPassantRef[0];
+  }
+
   function onSuccessfulMove(): void {
-    const nextPlayer = playerTurn === "white" ? "black" : "white";
-    setPlayerTurn(nextPlayer);
-    const color = playerTurn === "white" ? "b" : "w";
-    autoRankUp(playerTurn, board);
+    autoRankUp(currentTurnRef.current, board);
+    const enPassant = latestEnPassant(
+      board,
+      enPassantRef.current,
+      enPassantHistoryRef.current,
+    );
+    const nextPlayer = currentTurnRef.current === "white" ? "black" : "white";
+    currentTurnRef.current = nextPlayer;
+    const color = currentTurnRef.current === "white" ? "b" : "w";
     removeCastle();
     turnRef.current++;
     // console.log(
@@ -391,6 +530,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     //     turnRef.current,
     //   ),
     // );
+    // if (enPassantRef.current !== undefined) {
+    //   console.log(enPassantRef.current);
+    // }
     fenRef.current.push(
       completeFEN(
         board,
@@ -398,26 +540,45 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         color,
         halfRef.current,
         turnRef.current,
+        enPassant,
       ),
     );
+    //Logs complete FEN. FENCHECK
+    // console.log(
+    //   completeFEN(
+    //     board,
+    //     fenFormat(board),
+    //     color,
+    //     halfRef.current,
+    //     turnRef.current,
+    //     enPassant,
+    //   ),
+    // );
     const state = getGameState(nextPlayer, board);
     //TODO: End of game handler vvv
     if (state === "checkmate") {
-      console.log(`Checkmate, ${playerTurn} wins.`);
-      setWinner(playerTurn);
+      // console.log(`Checkmate, ${currentTurnRef.current} wins.`);
+      setWinner(currentTurnRef.current);
       setGameState("checkmate");
     } else if (state === "stalemate") {
-      console.log("Draw by stalemate.");
+      // console.log("Draw by stalemate.");
       setGameState("stalemate");
     } else if (isFiftyMoveDraw(halfRef.current)) {
-      console.log("Draw by 50 move rule.");
+      // console.log("Draw by 50 move rule.");
       setGameState("draw");
     } else if (isThreeRepetitionDraw(fenRef.current)) {
-      console.log("Draw by repetition.");
+      // console.log("Draw by repetition.");
       setGameState("draw");
+    }
+    if (vsAIRef.current && nextPlayer === colorAIRef.current) {
+      handleAiMove(colorAIRef.current);
+    }
+    if (firstMoveRef.current === true) {
+      firstMoveRef.current = false;
     }
   }
 
+  //Goes through board and changes castle flag
   function removeCastle(): void {
     let squares = board.flat();
     squares.forEach((square) => {
@@ -426,6 +587,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     });
   }
 
+  //Goes through board and changes en passant flag
   function removeEnPassant(): void {
     let squares = board.flat();
     squares.forEach((square) => {
@@ -437,14 +599,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function parentClick(square: Square): void {
     handleClick(square);
     onlyMoveOnTurn(square);
-    checkRef.current = check(playerTurn, board);
+    checkRef.current = check(currentTurnRef.current, board);
   }
 
-  //TODO: Proper highlighting
+  //TODO: Proper highlighting. Still buggy in what it shows, mostly an issue due to inconsistency
   function handleClick(square: Square): void {
-    const playerIsInCheck = check(playerTurn, board);
+    //TODO: Remove debugs
+    // console.log("handleClick fired, currentTurn:", currentTurnRef.current);
+    const playerIsInCheck = check(currentTurnRef.current, board);
     //Initial click on empty square
     if (!click && !square.squarePiece) {
+      // console.log("Clicked on empty square with no clicks beforehand");
       setStorePiece(null);
       setPrevSquare(null);
       setClicked(false);
@@ -452,6 +617,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     //Already clicked -> clicking on a square with a piece
     else if (click && square.squarePiece) {
+      // console.log("Clicked on piece while already having clicked");
       //grab legal moves function here
       if (prevSquare) {
         //If clicking on square with different color piece
@@ -461,7 +627,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               prevSquare,
               board,
               square,
-              playerTurn,
+              currentTurnRef.current,
             );
             if (inCheckAfterMove) {
               setPrevSquare(null);
@@ -489,7 +655,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               prevSquare,
               board,
               square,
-              playerTurn,
+              currentTurnRef.current,
             );
             if (stillInCheck) {
               prevSquare.selected = false;
@@ -538,6 +704,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
     //Initial click -> Click on square with piece
     else if (square.squarePiece && !click) {
+      // console.log("Initial click on square with piece");
       setClicked(true);
       setPrevSquare(square);
       setStorePiece(square.squarePiece);
@@ -552,7 +719,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         prevSquare!,
         board,
         square,
-        playerTurn,
+        currentTurnRef.current,
       );
       if (square.highlighted && storePiece !== null && !playerIsInCheck) {
         //Discovered check
@@ -576,10 +743,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             setStorePiece(null);
           }
           if (square.castle) {
-            castling(board, playerTurn, square.castleDir!);
+            castling(board, currentTurnRef.current, square.castleDir!);
           }
           if (square.enPassantTake && storePiece.type === "pawn") {
-            enPassant(board, square, playerTurn);
+            enPassant(board, square, currentTurnRef.current);
             removeEnPassant();
             // console.log("happened");
           }
@@ -594,12 +761,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       }
       //Same thing, if it's in check, unhighlight all and forget move, else continue with move
       else if (square.highlighted && storePiece !== null && playerIsInCheck) {
-        checkRef.current = simulateMove(prevSquare!, board, square, playerTurn);
+        checkRef.current = simulateMove(
+          prevSquare!,
+          board,
+          square,
+          currentTurnRef.current,
+        );
         const stillInCheck = simulateMove(
           prevSquare!,
           board,
           square,
-          playerTurn,
+          currentTurnRef.current,
         );
         if (stillInCheck) {
           prevSquare!.selected = false;
@@ -608,6 +780,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           unHighlight();
           return;
         } else {
+          if (square.castle) {
+            castling(board, currentTurnRef.current, square.castleDir!);
+          }
           if (storePiece.type === "pawn") {
             halfRef.current = 0;
           } else {
@@ -635,46 +810,226 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
   }
 
-  function handleRematch(board: ChessBoard): void {
-    const newBoard = populateBoard(structuredClone(board));
+  //Sets game to be in playable state and restarts game config modal
+  function handleRematch(): void {
+    setGameState("ongoing");
+    setGameConfig(null);
+  }
 
+  async function handleAiMove(color: Color): Promise<void> {
+    // console.log(
+    //   "handleAiMove called:",
+    //   aiResponseWaitRef.current,
+    //   "color:",
+    //   color,
+    // );
+    const playerColor: Color = color === "white" ? "black" : "white";
+    if (aiResponseWaitRef.current) return;
+    aiResponseWaitRef.current = true;
+
+    //List of common opening moves that are standard to be randomized for first move since stockfish always does e2e4 pawn push otherwise
+    const openers = [
+      "e2e4",
+      "d2d4",
+      "g1f3",
+      "c2c4",
+      "b2b3",
+      "g2g3",
+      "f2f4",
+      "b1c3",
+      "b2b3",
+      "b2b4",
+      "e2e3",
+    ];
+
+    const enPassant = latestEnPassant(
+      board,
+      enPassantRef.current,
+      enPassantHistoryRef.current,
+    );
+
+    try {
+      const fen = completeFEN(
+        board,
+        fenFormat(board),
+        color,
+        halfRef.current,
+        turnRef.current,
+        enPassant,
+      );
+      // console.log("Sent request");
+
+      //First move randomizer since stockfish api always returns e2e4 consistently as first move if playing white
+      //Tried lichess but needs a key and didn't want to make an account.
+      if (colorAIRef.current === "white" && turnRef.current < 2) {
+        const selectedMove =
+          openers[Math.floor(Math.random() * openers.length)];
+        const from = selectedMove.slice(0, 2);
+        const to = selectedMove.slice(2, 4);
+        const fromSquare = board.flat().find((sqr) => sqr.coordinate === from);
+        const toSquare = board.flat().find((sqr) => sqr.coordinate === to);
+
+        toSquare!.squarePiece = fromSquare!.squarePiece;
+        if (fromSquare!.squarePiece?.moved === false) {
+          fromSquare!.squarePiece!.moved = true;
+        }
+        fromSquare!.squarePiece = null;
+
+        autoRankUp(color, board);
+        removeCastle();
+        turnRef.current++;
+        currentTurnRef.current = playerColor;
+        fenRef.current.push(
+          completeFEN(
+            board,
+            fenFormat(board),
+            color,
+            halfRef.current,
+            turnRef.current,
+          ),
+        );
+        setClicked(false);
+        return;
+      }
+
+      //Depth is difficulty, stockfish explores further positions, which results in calculating better moves given its state. Lower depth = lower difficulty
+      const depth = difficultyToDepth(gameConfig?.difficulty!);
+
+      //UCI is chess notation, grabbing piece from square -> to square
+      const uci = await getStockfishMove(fen, depth);
+
+      removeEnPassant();
+
+      if (!uci) return;
+
+      const { from, to } = uciToSquare(uci as string);
+      const fromSquare = board[from.row][from.col];
+      const toSquare = board[to.row][to.col];
+      const movingPiece = fromSquare.squarePiece;
+
+      toSquare.squarePiece = fromSquare.squarePiece;
+      if (fromSquare.squarePiece?.moved === false) {
+        fromSquare.squarePiece!.moved = true;
+      }
+      fromSquare.squarePiece = null;
+
+      //Castling detection. If king moves more than 1 square then it's castling
+      if (movingPiece?.type === "king" && Math.abs(to.col - from.col) >= 2) {
+        const castleDir = to.col > from.col ? "right" : "left";
+        castling(board, color, castleDir);
+      }
+
+      halfRef.current =
+        toSquare.squarePiece?.type === "pawn" ? 0 : halfRef.current + 1;
+
+      //onSuccessfulMove here causing bugs and infinite recursion, handle AI's move here in isolation instead and have it be called on successful move for AI's turn.
+      autoRankUp(color, board);
+      removeCastle();
+      turnRef.current++;
+      currentTurnRef.current = playerColor;
+      fenRef.current.push(
+        completeFEN(
+          board,
+          fenFormat(board),
+          color,
+          halfRef.current,
+          turnRef.current,
+        ),
+      );
+
+      //Check if game is over after move
+      const state = getGameState(currentTurnRef.current, board);
+      if (state === "checkmate") {
+        setWinner(color);
+        setGameState("checkmate");
+      } else if (state === "stalemate") {
+        setGameState("stalemate");
+      }
+
+      setClicked(false);
+    } finally {
+      aiResponseWaitRef.current = false;
+      //TODO: Remove debugs
+      // console.log("AI move complete --- currentTurnRef:", currentTurnRef.current);
+      // console.log("aiResponseWaitRef:", aiResponseWaitRef.current);
+      // console.log("vsAIRef:", vsAIRef.current);
+      // console.log("colorAIRef:", colorAIRef.current);
+
+      //Rerender board
+      forceRender();
+    }
+  }
+
+  function handleGameStart(config: GameConfig): void {
+    //Reset board pieces
+    const newBoard = populateBoard(structuredClone(board));
     board.forEach((rank, i) => {
       rank.forEach((square, j) => {
         Object.assign(square, newBoard[i][j]);
       });
     });
 
+    //Reset refs
     halfRef.current = 0;
     turnRef.current = 1;
     checkRef.current = false;
     fenRef.current = [];
+    aiResponseWaitRef.current = false;
+    currentTurnRef.current = "white";
+    firstMoveRef.current = true;
+    playerRef.current = config.playerColor ?? "white";
+    vsAIRef.current = config.mode === "ai";
+    colorAIRef.current = config.playerColor === "white" ? "black" : "white";
 
+    //Reset UI states
     setGameState("ongoing");
     setWinner(undefined);
-    setPlayerTurn("white");
     setClicked(false);
     setStorePiece(null);
     setPrevSquare(null);
+
+    //Set config LAST so useEffect fires after everything above is set
+    setGameConfig(config);
   }
 
+  //On initial render set coordinate strings to all squares on board
   useEffect(() => {
     coordinates(board);
   }, []);
 
+  //On start select game configurations
+  useEffect(() => {
+    if (
+      gameConfig?.mode === "ai" &&
+      gameConfig?.playerColor === "black" &&
+      firstMoveRef.current
+    ) {
+      firstMoveRef.current = false;
+      handleAiMove("white");
+    }
+  }, [gameConfig]);
+
   return (
     <div className="grid grid-cols-8 w-[80vw] md:w-[90vw] lg:w-[95v] max-w-170 aspect-square shadow-2xl">
-      {board.flat().map((square) => (
-        <SquareTSX
-          key={`${square.row}-${square.col}`}
-          onClick={parentClick}
-          square={square}
-        />
-      ))}
+      {/*Mirror board for player POV using black chess pieces */}
+      {(playerRef.current === "black" ? [...board].slice().reverse() : board)
+        .flat()
+        .map((square) => (
+          <SquareTSX
+            key={`${square.row}-${square.col}`}
+            onClick={parentClick}
+            square={square}
+            playerColor={playerRef.current}
+          />
+        ))}
+      {!gameConfig && (
+        <GameSetupModal onStart={handleGameStart}></GameSetupModal>
+      )}
       {showGameOverModal && (
         <GameOverModal
           gameState={gameState}
           winner={winner}
-          onRematch={() => handleRematch(board)}
+          onRematch={() => handleRematch()}
           onClose={() => setGameState("ongoing")}
         ></GameOverModal>
       )}

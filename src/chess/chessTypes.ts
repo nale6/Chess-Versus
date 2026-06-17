@@ -1,7 +1,6 @@
 export type Color = "white" | "black";
 
 //TODO: Add name etc for profile functionality or remove id otherwise
-//Keep in mind need to translate to FEN later for chess apis
 export type Player = {
   color: Color;
   //Placeholder for now

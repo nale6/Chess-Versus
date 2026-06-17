@@ -1,5 +1,4 @@
-import { SquarePi } from "lucide-react";
-import type { Player, Color, ChessBoard, Piece } from "./chessTypes";
+import type { Player, Color, ChessBoard } from "./chessTypes";
 
 export function createPlayer(color: Color): Player {
   return {
@@ -241,6 +240,7 @@ export function completeFEN(
   playerTurn: string,
   halfClock: number,
   turns: number,
+  enPassant?: string | undefined,
 ): string {
   let fenComplete: string = fen;
   fenComplete += " ";
@@ -322,12 +322,12 @@ export function completeFEN(
   // })
 
   let enPassantAvailable = false;
-  board.flat().forEach((square) => {
-    if (square.enPassantTake) {
-      fenComplete += square.coordinate;
-      enPassantAvailable = true;
-    }
-  });
+
+  if (enPassant) {
+    fenComplete += enPassant;
+    enPassantAvailable = true;
+  }
+
   if (!enPassantAvailable) fenComplete += "-";
   fenComplete += " ";
 
@@ -337,5 +337,7 @@ export function completeFEN(
   return fenComplete;
 }
 
-//TODO player turns
+//TODO player turns with player obj
 //TODO timer
+//TODO undo after backend or code it and test using local storage
+//TODO: Surrender, ask for draw

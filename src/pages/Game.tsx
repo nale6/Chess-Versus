@@ -8,6 +8,8 @@ export default function ChessBoard() {
   const initBoard = populateBoard(createEmptyBoard());
   const [board, setBoard] = useState(initBoard);
 
+  //TODO: Chat, reevaluate over game and see points, visibly display what material you and opponent have taken, sidebar with profile, mock elo rating and system, change return/back button
+
   return (
     <div className="min-h-screen bg-zinc-900 flex justify-center items-center p-4">
       <div className="absolute top-0 left-0 w-[1vw]">
