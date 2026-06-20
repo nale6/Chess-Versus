@@ -21,6 +21,7 @@ const Landing = () => {
   //TODO: Once everything is done, add extra mechanics to truly be unique.
   //TODO: Fix highlighting on non legal moves specifically against pawn diagonal take but in general for all moves. Prevents properly from these moves taking place but king cannot be moved in front of a pawn
   //TODO: Backend to store and go back moves and needed for online play
+  //TODO: When pawn gets pushed the en passant(?) doenst' get cleared or something. Refer to screenshots
 
   return (
     <>

@@ -14,6 +14,7 @@ export type Move = {
   castle?: boolean;
   castleDir?: string;
   enPassant?: boolean;
+  doubleMove?: boolean;
 };
 
 export type PieceType =

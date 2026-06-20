@@ -1,4 +1,4 @@
-import type { Player, Color, ChessBoard } from "./chessTypes";
+import type { Player, Color, ChessBoard, PieceType } from "./chessTypes";
 
 export function createPlayer(color: Color): Player {
   return {
@@ -335,6 +335,81 @@ export function completeFEN(
   fenComplete += turns;
 
   return fenComplete;
+}
+
+//Function to take FEN string and update board based on it
+export function applyFenToBoard(fen: string, board: ChessBoard): void {
+  const pieceMap: Record<string, { type: PieceType; color: Color }> = {
+    p: { type: "pawn", color: "black" },
+    r: { type: "rook", color: "black" },
+    n: { type: "knight", color: "black" },
+    b: { type: "bishop", color: "black" },
+    q: { type: "queen", color: "black" },
+    k: { type: "king", color: "black" },
+    P: { type: "pawn", color: "white" },
+    R: { type: "rook", color: "white" },
+    N: { type: "knight", color: "white" },
+    B: { type: "bishop", color: "white" },
+    Q: { type: "queen", color: "white" },
+    K: { type: "king", color: "white" },
+  };
+
+  const [position, , castling] = fen.split(" ");
+  const ranks = position.split("/");
+
+  ranks.forEach((rank, rowIndex) => {
+    let colIndex = 0;
+    for (const char of rank) {
+      if (!isNaN(parseInt(char))) {
+        //Number means empty squares
+        const emptyCount = parseInt(char);
+        for (let i = 0; i < emptyCount; i++) {
+          board[rowIndex][colIndex].squarePiece = null;
+          colIndex++;
+        }
+      } else {
+        const piece = pieceMap[char];
+        if (piece) {
+          //Determine moved status from castling field
+          const moved = determineMoved(rowIndex, colIndex, char, castling);
+          board[rowIndex][colIndex].squarePiece = {
+            ...piece,
+            moved,
+            turnCount: 0,
+          };
+        }
+        colIndex++;
+      }
+    }
+  });
+}
+
+//Parse moves
+function determineMoved(
+  row: number,
+  col: number,
+  piece: string,
+  castling: string,
+): boolean {
+  //White king on e1
+  if (piece === "K" && row === 7 && col === 4)
+    return !castling.includes("K") && !castling.includes("Q");
+  //Black king on e8
+  if (piece === "k" && row === 0 && col === 4)
+    return !castling.includes("k") && !castling.includes("q");
+  //White kingside rook
+  if (piece === "R" && row === 7 && col === 7) return !castling.includes("K");
+  //White queenside rook
+  if (piece === "R" && row === 7 && col === 0) return !castling.includes("Q");
+  //Black kingside rook
+  if (piece === "r" && row === 0 && col === 7) return !castling.includes("k");
+  //Black queenside rook
+  if (piece === "r" && row === 0 && col === 0) return !castling.includes("q");
+  //Pawns on starting rank haven't moved
+  if (piece === "P" && row === 6) return false;
+  if (piece === "p" && row === 1) return false;
+  //Everything else has moved
+  return true;
 }
 
 //TODO player turns with player obj

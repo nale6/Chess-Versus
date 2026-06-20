@@ -3,6 +3,10 @@ import type { Color } from "../../src/chess/chessTypes";
 
 interface GameSetupModalProps {
   onStart: (config: GameConfig) => void;
+  onCreateGame: (playerColor: "white" | "black") => Promise<void>;
+  onJoinGame: (gameId: string, playerColor: "white" | "black") => Promise<void>;
+  gameCode: string | null;
+  waitingForOpponent: boolean;
 }
 
 export interface GameConfig {
@@ -11,10 +15,18 @@ export interface GameConfig {
   difficulty?: number; // only matters on vs ai
 }
 
-export function GameSetupModal({ onStart }: GameSetupModalProps) {
+export function GameSetupModal({
+  onStart,
+  onCreateGame,
+  onJoinGame,
+  gameCode,
+  waitingForOpponent,
+}: GameSetupModalProps) {
   const [mode, setMode] = useState<"ai" | "multiplayer" | "local">("local");
   const [playerColor, setPlayerColor] = useState<Color>("white");
   const [difficulty, setDifficulty] = useState(5);
+  const [joinCode, setJoinCode] = useState("");
+  const [onlineColor, setOnlineColor] = useState<"white" | "black">("white");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -131,12 +143,81 @@ export function GameSetupModal({ onStart }: GameSetupModalProps) {
           </>
         )}
         {mode === "multiplayer" && (
-          <p className="text-sm text-gray-400 text-center">TODO</p>
+          <div className="flex flex-col gap-4">
+            {/* Player selection */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-gray-400 uppercase tracking-wider">
+                Play as
+              </label>
+              <div className="flex gap-2">
+                {(["white", "black"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setOnlineColor(c)}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors
+              ${
+                onlineColor === c
+                  ? "bg-white text-zinc-900"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+              }`}
+                  >
+                    {c === "white" ? "White" : "Black"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/*Waiting Screen */}
+            {waitingForOpponent ? (
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-sm text-gray-400">
+                  Share this code with your opponent:
+                </p>
+                <p className="text-3xl font-mono font-bold text-white tracking-widest">
+                  {gameCode}
+                </p>
+                <p className="text-xs text-gray-500 animate-pulse">
+                  Waiting for opponent to join...
+                </p>
+              </div>
+            ) : (
+              //Create or join
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => onCreateGame(onlineColor)}
+                  className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors"
+                >
+                  Create Game
+                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-700" />
+                  <span className="text-xs text-gray-500">or</span>
+                  <div className="flex-1 h-px bg-gray-700" />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="Enter code"
+                    maxLength={6}
+                    className="flex-1 rounded-lg bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 font-mono tracking-widest outline-none border border-gray-700 focus:border-gray-500"
+                  />
+                  <button
+                    onClick={() => onJoinGame(joinCode, onlineColor)}
+                    disabled={joinCode.length !== 6}
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <button
           onClick={() => onStart({ mode, playerColor, difficulty })}
           disabled={mode === "multiplayer"}
-          className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none disabled:cursor-not-allowed"
+          className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none disabled:invisible disabled:mb-[-20%]"
         >
           Start Game
         </button>

@@ -47,17 +47,19 @@ export function pawnMoves(
     if (chessboard[square.row][square.col - 1].enPassant === true) {
       move.push({ row: nextRow, col: column - 1 });
     }
+
     if (chessboard[square.row][square.col + 1].enPassant === true) {
       move.push({ row: nextRow, col: column + 1 });
+    }
+
+    if (chessboard[square.row][square.col - 1].enPassant === true) {
+      move.push({ row: nextRow, col: column - 1 });
     }
   } else if (square.col === 0) {
     if (chessboard[square.row][square.col + 1].enPassant === true) {
       move.push({ row: nextRow, col: column + 1 });
     }
   } else if (square.col === 7) {
-    if (chessboard[square.row][square.col - 1].enPassant === true) {
-      move.push({ row: nextRow, col: column - 1 });
-    }
   }
   return move;
 }
@@ -711,22 +713,6 @@ export function filterLegalMoves(
   return legalMoves;
 }
 
-//TODO: Of course this also means that there needs to be a check logic (done) and logic that only allows moves that would deny checkmate if possible.
-export function staleCheckMate(color: Color, chessboard: ChessBoard): void {
-  let checkmate = false;
-  const moves = getMoves(color, chessboard);
-  moves.forEach((move) => {
-    if (
-      chessboard[move.row][move.col].squarePiece?.type === "king" &&
-      chessboard[move.row][move.col].squarePiece?.color === color
-    ) {
-      checkmate = true;
-    }
-  });
-  //DEBUG
-  console.log("Checkmate true stalemate false: ", checkmate);
-}
-
 //Checks if given board has a king in check
 export function check(color: Color, chessboard: ChessBoard): boolean {
   let inCheck = false;
@@ -895,4 +881,3 @@ export function isThreeRepetitionDraw(fenHistory: string[]): boolean {
   }
   return false;
 }
-
