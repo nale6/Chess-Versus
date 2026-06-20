@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { SquareTSX, ChessBoardTSX } from "../chess/Components";
+import { ChessBoardTSX } from "../chess/Components";
 import { createEmptyBoard, populateBoard } from "../chess/chessFunctions";
 
 export default function ChessBoard() {

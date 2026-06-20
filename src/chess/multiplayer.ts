@@ -1,4 +1,4 @@
-import { ref, set, onValue, update, off, remove, get } from "firebase/database";
+import { ref, set, onValue, update, off } from "firebase/database";
 import { database } from "../../backend/firebase";
 import { getAuth } from "firebase/auth";
 import type { Color } from "./chessTypes";
