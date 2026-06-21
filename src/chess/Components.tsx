@@ -39,16 +39,19 @@ import {
 } from "../../components/modals/gamemode-modal";
 import {
   createGame,
+  fetchChatHistory,
   generateGameID,
   generateUserID,
   getCurrentUserID,
   joinGame,
+  listenToChat,
   listenToGame,
+  postChatMessage,
   postMove,
   type GameData,
 } from "./multiplayer";
-import { getAuth } from "firebase/auth";
 import { initAuth } from "../../backend/firebase";
+import { Chat, type ChatMessage } from "./Chat";
 
 type SquareProps = {
   square: Square;
@@ -405,6 +408,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [, forceRender] = useReducer((x) => x + 1, 0);
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
   const currentTurnRef = useRef<Color>("white");
   const turnRef = useRef(1);
   const halfRef = useRef(0);
@@ -492,6 +497,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         board[square!.row + direction][square!.col].enPassantTake = true;
       }
     });
+    // console.log(moves);
   }
 
   function castling(board: ChessBoard, player: Color, direction: string): void {
@@ -509,8 +515,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }
 
   function enPassant(board: ChessBoard, square: Square, player: Color): void {
-    let dir = 1;
-    if (player === "black") dir = -1;
+    const dir = player === "white" ? 1 : -1;
     board[square.row + dir][square.col].squarePiece = null;
   }
 
@@ -591,7 +596,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       enPassantRef.current,
       enPassantHistoryRef.current,
     );
-
     const nextPlayer = currentTurnRef.current === "white" ? "black" : "white";
     currentTurnRef.current = nextPlayer;
     const color = currentTurnRef.current === "white" ? "b" : "w";
@@ -658,7 +662,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     const state = getGameState(nextPlayer, board);
     if (state === "checkmate") {
       // console.log(`Checkmate, ${currentTurnRef.current} wins.`);
-      setWinner(currentTurnRef.current);
+      //TODO fix notation vvv
+      setWinner(currentTurnRef.current === "white" ? "black" : "white");
       gameStateRef.current = "checkmate";
       updateGameState("checkmate");
     } else if (state === "stalemate") {
@@ -727,6 +732,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function removeEnPassant(board: ChessBoard): void {
     board.flat().forEach((sqr) => {
       sqr.enPassant = false;
+      sqr.enPassantTake = false;
     });
   }
 
@@ -777,13 +783,25 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               unHighlight();
               return;
             }
+
+            logMove(
+              turnRef.current,
+              storePiece!.type,
+              "takes",
+              prevSquare.coordinate,
+              square.coordinate,
+            );
+
             square.squarePiece = storePiece;
             prevSquare.selected = false;
+
             setClicked(false);
             unHighlight();
+
             if (prevSquare.squarePiece!.moved === false) {
               prevSquare.squarePiece!.moved = true;
             }
+
             prevSquare.squarePiece = null;
             halfRef.current = 0;
             fenRef.current = [];
@@ -805,6 +823,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
               unHighlight();
               return;
             } else {
+              logMove(
+                turnRef.current,
+                storePiece!.type,
+                "takes",
+                prevSquare.coordinate,
+                square.coordinate,
+              );
+
               checkRef.current = false;
               setClicked(false);
               square.squarePiece = storePiece;
@@ -845,6 +871,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     //Initial click -> Click on square with piece
     else if (square.squarePiece && !click) {
       // console.log("Initial click on square with piece");
+      // board.flat().forEach((sqr) => {
+      //   console.log(sqr.coordinate, sqr.enPassant);
+      // });
       setClicked(true);
       setPrevSquare(square);
       setStorePiece(square.squarePiece);
@@ -872,6 +901,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           return;
         }
         if (!square.squarePiece) {
+          //Detect en passant captures as takes
+          const wasEnPassantCapture =
+            square.enPassantTake && storePiece.type === "pawn";
+          logMove(
+            turnRef.current,
+            storePiece!.type,
+            wasEnPassantCapture ? "takes" : "moves",
+            prevSquare!.coordinate,
+            square.coordinate,
+          );
+
           square.squarePiece = storePiece;
           setClicked(false);
           if (prevSquare?.squarePiece!.moved === false) {
@@ -918,6 +958,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           unHighlight();
           return;
         } else {
+          const wasEnPassantCapture =
+            square.enPassantTake && storePiece.type === "pawn";
+          logMove(
+            turnRef.current,
+            storePiece!.type,
+            wasEnPassantCapture ? "takes" : "moves",
+            prevSquare!.coordinate,
+            square.coordinate,
+          );
           if (square.castle) {
             castling(board, currentTurnRef.current, square.castleDir!);
           }
@@ -952,6 +1001,13 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function handleRematch(): void {
     updateGameState("ongoing");
     setGameConfig(null);
+    const baseState = boardHistoryRef.current[0];
+    boardHistoryRef.current.forEach((_) => {
+      boardHistoryRef.current.pop();
+    });
+    boardHistoryRef.current.push(baseState);
+    boardHistoryRef.current.push(baseState);
+
     // const newBoard = populateBoard(structuredClone(board));
     // board.forEach((rank, i) => {
     //   rank.forEach((square, j) => {
@@ -1222,31 +1278,32 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     unsubscribeRef.current = unsub;
   }
 
-  async function handleJoinGame(
-    gameId: string,
-    playerColor: "white" | "black",
-  ): Promise<void> {
+  async function handleJoinGame(gameId: string): Promise<void> {
     gameIDRef.current = gameId;
-    playerRef.current = playerColor;
 
-    const success = await joinGame(gameId, getCurrentUserID(), playerColor);
-    if (!success) {
+    const result = await joinGame(gameId, getCurrentUserID());
+    if (!result.success || !result.assignedColor) {
       console.error("Failed to join game");
       return;
     }
 
-    handleGameStart({ mode: "multiplayer", playerColor });
+    playerRef.current = result.assignedColor;
+
+    handleGameStart({ mode: "multiplayer", playerColor: result.assignedColor });
     startOnlineGame(null);
   }
 
-  function startOnlineGame(initialData: GameData | null): void {
+  async function startOnlineGame(initialData: GameData | null): Promise<void> {
     if (!gameIDRef.current) return;
 
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
     }
 
-    const unsub = listenToGame(gameIDRef.current, (data) => {
+    const chatHistory = await fetchChatHistory(gameIDRef.current);
+    setChatMessages(chatHistory);
+
+    const gameUnsub = listenToGame(gameIDRef.current, (data) => {
       // console.log("Listener:");
       // console.log("Status:", data.status);
       // console.log("Game State", data.gameState);
@@ -1281,7 +1338,60 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       }
     });
 
-    unsubscribeRef.current = unsub;
+    //Listen for new chat entries
+    const chatUnsub = listenToChat(gameIDRef.current, (entry) => {
+      setChatMessages((prev) => {
+        const alreadyExists = prev.some(
+          (e) => e.timestamp === entry.timestamp && e.type === entry.type,
+        );
+        return alreadyExists ? prev : [...prev, entry];
+      });
+    });
+
+    //Stop listening
+    unsubscribeRef.current = () => {
+      gameUnsub();
+      chatUnsub();
+    };
+  }
+
+  //Logs move to chat
+  function logMove(
+    turn: number,
+    piece: string,
+    action: "moves" | "takes",
+    from: string,
+    to: string,
+  ): void {
+    const entry: ChatMessage = {
+      type: "move",
+      turn,
+      piece,
+      action,
+      from,
+      to,
+      timestamp: Date.now(),
+    };
+    setChatMessages((prev) => [...prev, entry]);
+
+    if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+      postChatMessage(gameIDRef.current, entry);
+    }
+  }
+
+  //Sends message
+  function handleSendMessage(text: string): void {
+    const message: ChatMessage = {
+      type: "message",
+      sender: playerRef.current,
+      text,
+      timestamp: Date.now(),
+    };
+    setChatMessages((prev) => [...prev, message]);
+
+    if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+      postChatMessage(gameIDRef.current, message);
+    }
   }
 
   //On initial render set coordinate strings to all squares on board
@@ -1320,7 +1430,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }, [boardHistoryRef.current]);
 
   return (
-    <div className="grid grid-cols-8 w-[80vw] md:w-[90vw] lg:w-[95v] max-w-170 aspect-square shadow-2xl">
+    <div className="flex gap-4 items-start justify-center">
       {/*Undo button, doesn't show up in multiplayer. TODO: Shows up in multiplayer after game end just to review game */}
       {(gameConfig?.mode === "ai" || gameConfig?.mode === "local") && (
         <button
@@ -1332,20 +1442,31 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         </button>
       )}
 
-      {/*Mirror board for player POV using black chess pieces */}
-      {(playerRef.current === "black"
-        ? [...board].flat().slice().reverse()
-        : board
-      )
-        .flat()
-        .map((square) => (
-          <SquareTSX
-            key={`${square.row}-${square.col}`}
-            onClick={parentClick}
-            square={square}
-            playerColor={playerRef.current}
-          />
-        ))}
+      <div className="grid grid-cols-8 w-[80vw] md:w-[80vw] lg:w-[90v] max-w-170 aspect-square shadow-2xl">
+        {/*Mirror board for player POV using black chess pieces */}
+        {(playerRef.current === "black"
+          ? [...board].flat().slice().reverse()
+          : board
+        )
+          .flat()
+          .map((square) => (
+            <SquareTSX
+              key={`${square.row}-${square.col}`}
+              onClick={parentClick}
+              square={square}
+              playerColor={playerRef.current}
+            />
+          ))}
+      </div>
+
+      {/*Chat */}
+      <div className="invisible md:h-[70dvh] pl-40 md:w-full md:max-w-md md:visible">
+        <Chat
+          entries={chatMessages}
+          onSendMessage={handleSendMessage}
+          playerColor={playerRef.current}
+        />
+      </div>
 
       {/* Game config and game over modals */}
       {!gameConfig && (

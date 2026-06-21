@@ -1,7 +1,17 @@
-import { ref, set, onValue, update, off } from "firebase/database";
+import {
+  ref,
+  set,
+  onValue,
+  update,
+  off,
+  get,
+  push,
+  onChildAdded,
+} from "firebase/database";
 import { database } from "../../backend/firebase";
 import { getAuth } from "firebase/auth";
 import type { Color } from "./chessTypes";
+import type { ChatMessage } from "./Chat";
 
 //Random room code
 export function generateGameID(): string {
@@ -35,39 +45,36 @@ export async function createGame(
 export async function joinGame(
   gameId: string,
   userId: string,
-  playerColor: "white" | "black",
-): Promise<boolean> {
+): Promise<{ success: boolean; assignedColor: "white" | "black" | null }> {
   const gameRef = ref(database, `games/${gameId}`);
+  const snapshot = await get(gameRef);
+  const data = snapshot.val();
 
-  return new Promise((resolve) => {
-    onValue(
-      gameRef,
-      async (snapshot) => {
-        off(gameRef); //Stop listening after first read
-        const data = snapshot.val();
+  if (!data) {
+    return { success: false, assignedColor: null };
+  }
+  if (data.status !== "waiting") {
+    return { success: false, assignedColor: null };
+  }
 
-        if (!data) {
-          console.error("Game not found");
-          resolve(false);
-          return;
-        }
-        if (data.status !== "waiting") {
-          console.error("Game already in progress");
-          resolve(false);
-          return;
-        }
+  const assignedColor: "white" | "black" | null = !data.playerWhite
+    ? "white"
+    : !data.playerBlack
+      ? "black"
+      : null;
 
-        await update(gameRef, {
-          playerWhite: playerColor === "white" ? userId : data.playerWhite,
-          playerBlack: playerColor === "black" ? userId : data.playerBlack,
-          status: "ongoing",
-        });
+  //Room full
+  if (!assignedColor) {
+    return { success: false, assignedColor: null };
+  }
 
-        resolve(true);
-      },
-      { onlyOnce: true },
-    );
+  await update(gameRef, {
+    playerWhite: assignedColor === "white" ? userId : data.playerWhite,
+    playerBlack: assignedColor === "black" ? userId : data.playerBlack,
+    status: "ongoing",
   });
+
+  return { success: true, assignedColor };
 }
 
 //Post move to Firebase
@@ -110,6 +117,51 @@ export function listenToGame(
 
 export function getCurrentUserID(): string {
   return getAuth().currentUser?.uid ?? "";
+}
+
+export async function getAvailableColor(
+  gameId: string,
+): Promise<"white" | "black" | null> {
+  const gameRef = ref(database, `games/${gameId}`);
+  const snapshot = await get(gameRef);
+  const data = snapshot.val();
+
+  if (!data) return null; //Game doesn't exist
+
+  if (!data.playerWhite) return "white";
+  if (!data.playerBlack) return "black";
+  return null; //slots taken
+}
+
+export async function postChatMessage(
+  gameId: string,
+  entry: ChatMessage,
+): Promise<void> {
+  const chatRef = ref(database, `games/${gameId}/chat`);
+  //Generates a unique key, keeps entries ordered
+  const newEntryRef = push(chatRef);
+  await set(newEntryRef, entry);
+}
+
+export function listenToChat(
+  gameId: string,
+  onNewEntry: (entry: ChatMessage) => void,
+): () => void {
+  const chatRef = ref(database, `games/${gameId}/chat`);
+  onChildAdded(chatRef, (snapshot) => {
+    const entry = snapshot.val();
+    if (entry) onNewEntry(entry);
+  });
+  return () => off(chatRef);
+}
+
+//Fetches chat history in full from firebase
+export async function fetchChatHistory(gameId: string): Promise<ChatMessage[]> {
+  const chatRef = ref(database, `games/${gameId}/chat`);
+  const snapshot = await get(chatRef);
+  const data = snapshot.val();
+  if (!data) return [];
+  return Object.values(data) as ChatMessage[];
 }
 
 export interface GameData {

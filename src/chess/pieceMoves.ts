@@ -16,16 +16,19 @@ export function pawnMoves(
   //Pawns stay in same column unless they can take or en passant rule applies (check if that's what it's called)
   const column = square.col;
 
+  //Forward
   if (nextRow >= 0 && nextRow < 8) {
     if (chessboard[nextRow][column].squarePiece === null) {
       move.push({ row: nextRow, col: column });
     }
   }
+  //Double-move from start
   if (!piece.moved && move.length > 0) {
     if (chessboard[nextRowNoMove][column].squarePiece === null) {
       move.push({ row: nextRowNoMove, col: column, enPassant: true });
     }
   }
+  //Diagonal
   if (column - 1 >= 0) {
     if (
       chessboard[nextRow][column - 1].squarePiece &&
@@ -43,24 +46,30 @@ export function pawnMoves(
     }
   }
 
-  if (square.col > 0 && square.col < 7) {
-    if (chessboard[square.row][square.col - 1].enPassant === true) {
-      move.push({ row: nextRow, col: column - 1 });
+  //En passant captures
+  if (column - 1 >= 0) {
+    const adjacent = chessboard[square.row][column - 1];
+    if (
+      adjacent.squarePiece &&
+      adjacent.squarePiece.type === "pawn" &&
+      adjacent.squarePiece.color !== piece.color &&
+      adjacent.enPassant === true
+    ) {
+      move.push({ row: nextRow, col: column - 1, enPassant: true });
     }
-
-    if (chessboard[square.row][square.col + 1].enPassant === true) {
-      move.push({ row: nextRow, col: column + 1 });
-    }
-
-    if (chessboard[square.row][square.col - 1].enPassant === true) {
-      move.push({ row: nextRow, col: column - 1 });
-    }
-  } else if (square.col === 0) {
-    if (chessboard[square.row][square.col + 1].enPassant === true) {
-      move.push({ row: nextRow, col: column + 1 });
-    }
-  } else if (square.col === 7) {
   }
+  if (column + 1 < 8) {
+    const adjacent = chessboard[square.row][column + 1];
+    if (
+      adjacent.squarePiece &&
+      adjacent.squarePiece.type === "pawn" &&
+      adjacent.squarePiece.color !== piece.color &&
+      adjacent.enPassant === true
+    ) {
+      move.push({ row: nextRow, col: column + 1, enPassant: true });
+    }
+  }
+
   return move;
 }
 
