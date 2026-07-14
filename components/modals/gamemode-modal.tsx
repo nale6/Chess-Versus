@@ -3,7 +3,11 @@ import type { Color } from "../../src/chess/chessTypes";
 
 interface GameSetupModalProps {
   onStart: (config: GameConfig) => void;
-  onCreateGame: (playerColor: "white" | "black") => Promise<void>;
+  onCreateGame: (
+    playerColor: Color,
+    timerSeconds: number,
+    timerIncrement: number,
+  ) => Promise<void>;
   onJoinGame: (gameId: string, playerColor: "white" | "black") => Promise<void>;
   gameCode: string | null;
   waitingForOpponent: boolean;
@@ -13,6 +17,8 @@ export interface GameConfig {
   mode: "ai" | "multiplayer" | "local";
   playerColor?: Color; // Important even in local for mirroring shenanigans
   difficulty?: number; // only matters on vs ai
+  timerSeconds: number;
+  timerIncrement: number; // 0 = disabled
 }
 
 export function GameSetupModal({
@@ -27,6 +33,20 @@ export function GameSetupModal({
   const [difficulty, setDifficulty] = useState(5);
   const [joinCode, setJoinCode] = useState("");
   const [onlineColor, setOnlineColor] = useState<"white" | "black">("white");
+
+  const timeOptions = [
+    { label: "30s", value: 30 },
+    { label: "1m", value: 60 },
+    { label: "2m", value: 120 },
+    { label: "3m", value: 180 },
+    { label: "5m", value: 300 },
+    { label: "10m", value: 600 },
+    { label: "15m", value: 900 },
+    { label: "20m", value: 1200 },
+    { label: "30m", value: 1800 },
+  ];
+  const [timerIndex, setTimerIndex] = useState(4);
+  const [incrementEnabled, setIncrementEnabled] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -181,10 +201,16 @@ export function GameSetupModal({
                 </p>
               </div>
             ) : (
-              //Create or join
+              //Create or join game
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => onCreateGame(onlineColor)}
+                  onClick={() =>
+                    onCreateGame(
+                      onlineColor,
+                      timeOptions[timerIndex].value,
+                      incrementEnabled ? 1 : 0,
+                    )
+                  }
                   className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors"
                 >
                   Create Game
@@ -214,8 +240,62 @@ export function GameSetupModal({
             )}
           </div>
         )}
+
+        {/* Timer selection */}
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <label className="text-xs text-gray-400 uppercase tracking-wider">
+              Time per player
+            </label>
+            <span className="text-xs text-white font-medium">
+              {timeOptions[timerIndex].label}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={timeOptions.length - 1}
+            value={timerIndex}
+            onChange={(e) => setTimerIndex(Number(e.target.value))}
+            className="w-full accent-white"
+          />
+          <div className="flex justify-between text-xs text-gray-600">
+            <span>30s</span>
+            <span>30m</span>
+          </div>
+        </div>
+
+        {/* Increment toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-400 uppercase tracking-wider">
+              +1s per move
+            </span>
+            <span className="text-xs text-gray-600">
+              Add 1 second after each move
+            </span>
+          </div>
+          <button
+            onClick={() => setIncrementEnabled((prev) => !prev)}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200
+      ${incrementEnabled ? "bg-white" : "bg-gray-700"}`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-900 transition-transform duration-200
+        ${incrementEnabled ? "translate-x-5" : "translate-x-0"}`}
+            />
+          </button>
+        </div>
         <button
-          onClick={() => onStart({ mode, playerColor, difficulty })}
+          onClick={() =>
+            onStart({
+              mode,
+              playerColor,
+              difficulty,
+              timerSeconds: timeOptions[timerIndex].value,
+              timerIncrement: incrementEnabled ? 1 : 0,
+            })
+          }
           disabled={mode === "multiplayer"}
           className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none disabled:invisible disabled:mb-[-20%]"
         >

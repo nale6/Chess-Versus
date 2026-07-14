@@ -8,6 +8,7 @@ import {
   ChessQueen,
   ChessKing,
   Undo2,
+  Handshake,
 } from "lucide-react";
 import { useEffect, useReducer, useRef, useState } from "react";
 import {
@@ -29,6 +30,7 @@ import {
   completeFEN,
   coordinates,
   fenFormat,
+  getTurn,
   populateBoard,
 } from "./chessFunctions";
 import { GameOverModal } from "../../components/modals/gameover-modal";
@@ -43,15 +45,18 @@ import {
   generateGameID,
   generateUserID,
   getCurrentUserID,
+  getGameData,
   joinGame,
   listenToChat,
   listenToGame,
   postChatMessage,
+  postDrawForfeit,
   postMove,
   type GameData,
 } from "./multiplayer";
 import { initAuth } from "../../backend/firebase";
 import { Chat, type ChatMessage } from "./Chat";
+import { Timer } from "./Timer";
 
 type SquareProps = {
   square: Square;
@@ -409,9 +414,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [drawOfferedByOpponent, setDrawOfferedByOpponent] = useState(false);
 
   const currentTurnRef = useRef<Color>("white");
-  const turnRef = useRef(1);
+  const turnRef = useRef(0);
   const halfRef = useRef(0);
   const checkRef = useRef(false);
   const fenRef = useRef<string[]>([]);
@@ -436,12 +442,22 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const gameIDRef = useRef<string | null>(null);
   const userIDRef = useRef<string>(generateUserID());
   const unsubscribeRef = useRef<(() => void) | null>(null);
-  const gameStateRef = useRef<"ongoing" | "checkmate" | "stalemate" | "draw">(
-    "ongoing",
-  );
+  const gameStateRef = useRef<GameState>("ongoing");
+  const gameStartRef = useRef(false);
+  const lastHandledDrawRef = useRef<string | null>(null);
   // const multiplayerWinRef = useRef<Color | null>(null);
 
   const showGameOverModal = gameState !== "ongoing";
+
+  const timerSeconds = gameConfig?.timerSeconds ?? 300;
+  const timerIncrement = gameConfig?.timerIncrement ?? 0;
+
+  function handleTimeout(loser: Color): void {
+    const winner: Color = loser === "white" ? "black" : "white";
+    setWinner(winner);
+    updateGameState("timeout");
+    gameStateRef.current = "timeout";
+  }
 
   function getLegalMoves(square: Square): Move[] {
     let moves: Move[] = [];
@@ -600,7 +616,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     currentTurnRef.current = nextPlayer;
     const color = currentTurnRef.current === "white" ? "b" : "w";
     removeCastle();
-    turnRef.current++;
+    //Raise after white's turn
+    if (currentTurnRef.current === "white") turnRef.current++;
+    //Raise on other turn in multiplayer due to latency
+    if (
+      currentTurnRef.current === "black" &&
+      gameConfig?.mode === "multiplayer"
+    )
+      turnRef.current++;
 
     removeEnPassant(board);
 
@@ -647,6 +670,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         enPassant,
       ),
     );
+
     //Logs complete FEN. FENCHECK
     // console.log(
     //   completeFEN(
@@ -693,6 +717,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         gameStateRef.current,
         multiplayerWinner,
       );
+      // console.log(fenRef.current[fenRef.current.length - 1]);
     }
 
     if (vsAIRef.current && nextPlayer === colorAIRef.current) {
@@ -717,6 +742,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     if (firstMoveRef.current === true) {
       firstMoveRef.current = false;
     }
+
+    gameStartRef.current = true;
   }
 
   //Goes through board and changes castle flag
@@ -737,6 +764,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }
 
   function parentClick(square: Square): void {
+    if (gameStateRef.current !== "ongoing") return;
     if (
       gameConfig?.mode !== "local" &&
       currentTurnRef.current !== playerRef.current
@@ -750,6 +778,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
   //TODO: Proper highlighting. Still buggy in what it shows, mostly an issue due to inconsistency
   function handleClick(square: Square): void {
+    if (gameStateRef.current !== "ongoing") return;
     //TODO: Remove debugs
     // console.log("handleClick fired, currentTurn:", currentTurnRef.current);
     const playerIsInCheck = check(currentTurnRef.current, board);
@@ -785,7 +814,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             }
 
             logMove(
-              turnRef.current,
+              turnRef.current + 1,
               storePiece!.type,
               "takes",
               prevSquare.coordinate,
@@ -903,14 +932,18 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         if (!square.squarePiece) {
           //Detect en passant captures as takes
           const wasEnPassantCapture =
-            square.enPassantTake && storePiece.type === "pawn";
+            square.enPassantTake &&
+            storePiece.type === "pawn" &&
+            Math.abs(prevSquare!.col - square.col) === 1;
+
           logMove(
-            turnRef.current,
+            turnRef.current + 1,
             storePiece!.type,
             wasEnPassantCapture ? "takes" : "moves",
             prevSquare!.coordinate,
             square.coordinate,
           );
+          // console.log(turnRef.current);
 
           square.squarePiece = storePiece;
           setClicked(false);
@@ -1007,6 +1040,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     });
     boardHistoryRef.current.push(baseState);
     boardHistoryRef.current.push(baseState);
+    setChatMessages([]);
+    gameStartRef.current = false;
 
     // const newBoard = populateBoard(structuredClone(board));
     // board.forEach((rank, i) => {
@@ -1061,7 +1096,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
       //First move randomizer since stockfish api always returns e2e4 consistently as first move if playing white
       //Tried lichess but needs a key and didn't want to make an account.
-      if (colorAIRef.current === "white" && turnRef.current < 2) {
+      if (colorAIRef.current === "white" && turnRef.current === 0) {
         const selectedMove =
           openers[Math.floor(Math.random() * openers.length)];
         const from = selectedMove.slice(0, 2);
@@ -1077,7 +1112,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
         autoRankUp(color, board);
         removeCastle();
-        turnRef.current++;
+        logMove(1, "pawn", "moves", from, to);
         currentTurnRef.current = playerColor;
         fenRef.current.push(
           completeFEN(
@@ -1089,6 +1124,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           ),
         );
         setClicked(false);
+        gameStartRef.current = true;
 
         return;
       }
@@ -1107,6 +1143,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       const fromSquare = board[from.row][from.col];
       const toSquare = board[to.row][to.col];
       const movingPiece = fromSquare.squarePiece;
+      const wasCapture = toSquare.squarePiece !== null;
+      const pieceType = movingPiece?.type ?? "pawn";
 
       toSquare.squarePiece = fromSquare.squarePiece;
       if (fromSquare.squarePiece?.moved === false) {
@@ -1126,7 +1164,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       //onSuccessfulMove here causing bugs and infinite recursion, handle AI's move here in isolation instead and have it be called on successful move for AI's turn.
       autoRankUp(color, board);
       removeCastle();
-      turnRef.current++;
       currentTurnRef.current = playerColor;
       fenRef.current.push(
         completeFEN(
@@ -1138,11 +1175,31 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         ),
       );
 
+      if (playerColor === "white") {
+        turnRef.current++;
+        logMove(
+          turnRef.current,
+          pieceType,
+          wasCapture ? "takes" : "moves",
+          board[from.row][from.col].coordinate,
+          board[to.row][to.col].coordinate,
+        );
+      } else {
+        logMove(
+          turnRef.current + 1,
+          pieceType,
+          wasCapture ? "takes" : "moves",
+          board[from.row][from.col].coordinate,
+          board[to.row][to.col].coordinate,
+        );
+      }
+
       //Check if game is over after move
       const state = getGameState(currentTurnRef.current, board);
       if (state === "checkmate") {
         setWinner(color);
         updateGameState("checkmate");
+        gameStartRef.current = false;
       } else if (state === "stalemate") {
         updateGameState("stalemate");
       }
@@ -1170,11 +1227,11 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
   }
 
-  function updateGameState(
-    state: "ongoing" | "checkmate" | "stalemate" | "draw",
-  ): void {
+  function updateGameState(state: GameState): void {
     gameStateRef.current = state;
     setGameState(state);
+    if (gameStateRef.current !== "ongoing") gameStartRef.current = false;
+    // console.log(gameStateRef.current);
   }
 
   function handleGameStart(config: GameConfig): void {
@@ -1188,7 +1245,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
     //Reset refs
     halfRef.current = 0;
-    turnRef.current = 1;
+    turnRef.current = 0;
     checkRef.current = false;
     fenRef.current = [];
     aiResponseWaitRef.current = false;
@@ -1197,6 +1254,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     playerRef.current = config.playerColor ?? "white";
     vsAIRef.current = config.mode === "ai";
     colorAIRef.current = config.playerColor === "white" ? "black" : "white";
+    gameStartRef.current = false;
 
     //Reset UI states
     updateGameState("ongoing");
@@ -1244,6 +1302,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     firstMoveRef.current = prev.firstMove;
     fenRef.current.pop();
 
+    setGameState("ongoing");
+    gameStateRef.current = "ongoing";
     setClicked(false);
     setStorePiece(null);
     setPrevSquare(null);
@@ -1252,13 +1312,21 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
   async function handleCreateGame(
     playerColor: "white" | "black",
+    timerSeconds: number,
+    timerIncrement: number,
   ): Promise<void> {
     const gameId = generateGameID();
     gameIDRef.current = gameId;
     playerRef.current = playerColor;
     colorAIRef.current = playerColor === "white" ? "black" : "white";
 
-    await createGame(gameId, getCurrentUserID(), playerColor);
+    await createGame(
+      gameId,
+      getCurrentUserID(),
+      playerColor,
+      timerSeconds ?? 300,
+      timerIncrement ?? 0,
+    );
     setGameCode(gameId);
     setWaitingForOpponent(true);
 
@@ -1272,7 +1340,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         startOnlineGame(null);
 
         //Set game config so the board renders and piece locking works
-        handleGameStart({ mode: "multiplayer", playerColor });
+        handleGameStart({
+          mode: "multiplayer",
+          playerColor,
+          timerSeconds: data.timerSeconds ?? 300,
+          timerIncrement: data.timerIncrement ?? 0,
+        });
       }
     });
     unsubscribeRef.current = unsub;
@@ -1289,7 +1362,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
     playerRef.current = result.assignedColor;
 
-    handleGameStart({ mode: "multiplayer", playerColor: result.assignedColor });
+    const gameData = await getGameData(gameId);
+
+    handleGameStart({
+      mode: "multiplayer",
+      playerColor: result.assignedColor,
+      timerSeconds: gameData?.timerSeconds ?? 300,
+      timerIncrement: gameData?.timerIncrement ?? 0,
+    });
     startOnlineGame(null);
   }
 
@@ -1300,8 +1380,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       unsubscribeRef.current();
     }
 
+    //Load history
     const chatHistory = await fetchChatHistory(gameIDRef.current);
     setChatMessages(chatHistory);
+
+    //Track last loaded entry
+    const lastHistory =
+      chatHistory.length > 0
+        ? Math.max(...chatHistory.map((e) => e.timestamp))
+        : 0;
 
     const gameUnsub = listenToGame(gameIDRef.current, (data) => {
       // console.log("Listener:");
@@ -1310,12 +1397,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       // console.log("Winner:", data.winner);
       // console.log("Game State Ref:", gameStateRef.current);
 
-      const winr = data.winner !== null ? data.winner : undefined;
+      const winner = data.winner !== null ? data.winner : undefined;
 
       if (data.status === "finished" && gameStateRef.current === "ongoing") {
         // console.log("Game over condition met");
         if (data.gameState === "checkmate") {
-          setWinner(winr);
+          setWinner(winner);
           updateGameState("checkmate");
           return;
         } else if (data.gameState === "stalemate") {
@@ -1324,8 +1411,13 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         } else if (data.gameState === "draw") {
           updateGameState("draw");
           return;
+        } else if (data.gameState === "forfeit") {
+          updateGameState("forfeit");
+          return;
         }
       }
+
+      // console.log(gameStateRef.current);
 
       if (
         data.lastMove !== null &&
@@ -1334,12 +1426,57 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       ) {
         applyFenToBoard(data.fen, board);
         currentTurnRef.current = data.currentTurn;
+        if (data.lastMove !== undefined) {
+          gameStartRef.current = true;
+        }
         forceRender();
+      }
+
+      if (data.draw && data.drawBy !== playerRef.current) {
+        const drawSignature = `${data.draw}:${data.drawBy}:${data.lastMove ?? "start"}`;
+        const alreadyHandled = lastHandledDrawRef.current === drawSignature;
+
+        if (data.draw === "draw_offer" && !alreadyHandled) {
+          lastHandledDrawRef.current = drawSignature;
+          setDrawOfferedByOpponent(true);
+          // setChatMessages((prev) => [
+          //   ...prev,
+          //   {
+          //     type: "message",
+          //     sender: data.drawBy === "white" ? "white" : "black",
+          //     text: `${data.drawBy} offers a draw`,
+          //     timestamp: Date.now(),
+          //   },
+          // ]);
+        } else if (data.draw === "draw_accept" && !alreadyHandled) {
+          lastHandledDrawRef.current = drawSignature;
+          setDrawOfferedByOpponent(false);
+          updateGameState("draw");
+        } else if (data.draw === "draw_decline" && !alreadyHandled) {
+          lastHandledDrawRef.current = drawSignature;
+          setDrawOfferedByOpponent(false);
+          // setChatMessages((prev) => [
+          //   ...prev,
+          //   {
+          //     type: "message",
+          //     sender: data.drawBy === "white" ? "white" : "black",
+          //     text: "Draw declined",
+          //     timestamp: Date.now(),
+          //   },
+          // ]);
+        } else if (data.draw === "forfeit" && !alreadyHandled) {
+          lastHandledDrawRef.current = drawSignature;
+          const winner: Color = data.drawBy === "white" ? "black" : "white";
+          setWinner(winner);
+          updateGameState("forfeit");
+        }
       }
     });
 
     //Listen for new chat entries
     const chatUnsub = listenToChat(gameIDRef.current, (entry) => {
+      if (entry.timestamp <= lastHistory) return;
+
       setChatMessages((prev) => {
         const alreadyExists = prev.some(
           (e) => e.timestamp === entry.timestamp && e.type === entry.type,
@@ -1372,10 +1509,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       to,
       timestamp: Date.now(),
     };
+
     setChatMessages((prev) => [...prev, entry]);
 
     if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
       postChatMessage(gameIDRef.current, entry);
+      // console.log(entry);
     }
   }
 
@@ -1391,6 +1530,85 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
     if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
       postChatMessage(gameIDRef.current, message);
+    }
+  }
+
+  function handleDraw(): void {
+    const entry: ChatMessage = {
+      type: "draw_offer",
+      sender: playerRef.current,
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prev) => [...prev, entry]);
+
+    if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+      //Posts to opponent
+      postDrawForfeit(gameIDRef.current, "draw_offer", playerRef.current);
+      postChatMessage(gameIDRef.current, entry);
+    } else {
+      //Local mode auto shows draw offer in chat, other player clicks accept. Not sure if really needed.
+      // setDrawOfferedByOpponent(true);
+    }
+  }
+
+  function handleDrawResponse(accepted: boolean): void {
+    // setDrawOfferedByOpponent(false);
+    const responseEntry: ChatMessage = {
+      type: "message",
+      sender: playerRef.current,
+      text: accepted ? "Draw accepted" : "Draw declined",
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prev) => [...prev, responseEntry]);
+
+    if (accepted) {
+      updateGameState("draw");
+      if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+        postChatMessage(gameIDRef.current, responseEntry);
+        postDrawForfeit(gameIDRef.current, "draw_accept", playerRef.current);
+        postMove(
+          gameIDRef.current,
+          fenRef.current[fenRef.current.length - 1],
+          currentTurnRef.current,
+          `${Date.now()}`,
+          "draw",
+          null,
+        );
+      }
+    } else {
+      if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+        postChatMessage(gameIDRef.current, responseEntry);
+        postDrawForfeit(gameIDRef.current, "draw_decline", playerRef.current);
+      }
+    }
+  }
+
+  function handleForfeit(): void {
+    const winner: Color = playerRef.current === "white" ? "black" : "white";
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        type: "message",
+        sender: playerRef.current,
+        text: `${playerRef.current.charAt(0).toUpperCase() + playerRef.current.slice(1)} forfeits`,
+        timestamp: Date.now(),
+      },
+    ]);
+    setWinner(winner);
+    updateGameState("forfeit");
+
+    if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
+      postDrawForfeit(gameIDRef.current, "forfeit", playerRef.current);
+      postMove(
+        gameIDRef.current,
+        fenRef.current[fenRef.current.length - 1],
+        currentTurnRef.current,
+        `${Date.now()}`,
+        "forfeit",
+        winner,
+      );
     }
   }
 
@@ -1430,42 +1648,77 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }, [boardHistoryRef.current]);
 
   return (
-    <div className="flex gap-4 items-start justify-center">
+    <div className="flex flex-row place-items-center max-w-full min-w-0 md:gap-10 2xl:gap-0">
       {/*Undo button, doesn't show up in multiplayer. TODO: Shows up in multiplayer after game end just to review game */}
       {(gameConfig?.mode === "ai" || gameConfig?.mode === "local") && (
         <button
           type="button"
           onClick={() => undo()}
-          className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)\"
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)\"
         >
           <Undo2 /> <span className="text-sm font-medium">Undo</span>
         </button>
       )}
 
-      <div className="grid grid-cols-8 w-[80vw] md:w-[80vw] lg:w-[90v] max-w-170 aspect-square shadow-2xl">
-        {/*Mirror board for player POV using black chess pieces */}
-        {(playerRef.current === "black"
-          ? [...board].flat().slice().reverse()
-          : board
-        )
-          .flat()
-          .map((square) => (
-            <SquareTSX
-              key={`${square.row}-${square.col}`}
-              onClick={parentClick}
-              square={square}
-              playerColor={playerRef.current}
-            />
-          ))}
+      <div className="flex items-center min-w-0 w-[80vw] lg:w-[40vw] md:w-[45vw] md:ml-11 sm:w-[67vw]">
+        <div className="grid grid-cols-8 w-[90vw] md:w-[80vw] lg:w-[90v] max-w-170 aspect-square shadow-2xl min-w-0">
+          {/*Mirror board for player POV using black chess pieces */}
+          {(playerRef.current === "black"
+            ? [...board].flat().slice().reverse()
+            : board
+          )
+            .flat()
+            .map((square) => (
+              <SquareTSX
+                key={`${square.row}-${square.col}`}
+                onClick={parentClick}
+                square={square}
+                playerColor={playerRef.current}
+              />
+            ))}
+        </div>
       </div>
 
       {/*Chat */}
-      <div className="invisible md:h-[70dvh] pl-40 md:w-full md:max-w-md md:visible">
+      <div className="hidden md:block md:h-[45vh] md:max-h-100 lg:h-[60dvh] lg:max-h-120 xl:h-[60dvh] xl:max-h-full 2xl:h-[69dvh]">
         <Chat
           entries={chatMessages}
           onSendMessage={handleSendMessage}
           playerColor={playerRef.current}
+          onDrawOffer={handleDraw}
+          onDrawResponse={handleDrawResponse}
+          onForfeit={handleForfeit}
+          vsAI={vsAIRef.current || gameConfig?.mode === "local"}
+          gameState={gameState}
         />
+        <div className="flex gap-10 pt-3">
+          <Timer
+            initialSeconds={timerSeconds}
+            isActive={
+              currentTurnRef.current === playerRef.current &&
+              gameState === "ongoing" &&
+              gameStartRef.current
+            }
+            isGameOver={gameState !== "ongoing"}
+            increment={timerIncrement}
+            onTimeout={() => handleTimeout(playerRef.current)}
+            label={playerRef.current === "white" ? "White" : "Black"}
+          />
+          <Timer
+            initialSeconds={timerSeconds}
+            isActive={
+              currentTurnRef.current !== playerRef.current &&
+              gameState === "ongoing" &&
+              gameStartRef.current
+            }
+            isGameOver={gameState !== "ongoing"}
+            increment={timerIncrement}
+            onTimeout={() =>
+              handleTimeout(playerRef.current === "white" ? "black" : "white")
+            }
+            label={playerRef.current === "white" ? "Black" : "White"}
+          />
+        </div>
       </div>
 
       {/* Game config and game over modals */}
@@ -1483,9 +1736,33 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           gameState={gameState}
           winner={winner}
           onRematch={() => handleRematch()}
-          onClose={() => updateGameState("ongoing")}
+          onClose={() => updateGameState("closed")}
         ></GameOverModal>
       )}
+      {/* {drawOfferedByOpponent && gameState === "ongoing" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-2xl bg-zinc-900 border border-gray-700 px-10 py-8 shadow-2xl w-full max-w-xs mx-4">
+            <Handshake size={36} className="text-white" />
+            <p className="text-white font-medium text-center">
+              Your opponent offers a draw
+            </p>
+            <div className="flex w-full gap-3">
+              <button
+                onClick={() => handleDrawResponse(false)}
+                className="flex-1 rounded-lg bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => handleDrawResponse(true)}
+                className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )} */}
     </div>
   );
 }

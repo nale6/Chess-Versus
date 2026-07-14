@@ -334,6 +334,7 @@ export function completeFEN(
   fenComplete += halfClock + " ";
   fenComplete += turns;
 
+  // console.log(fenComplete);
   return fenComplete;
 }
 
@@ -412,7 +413,7 @@ function determineMoved(
   return true;
 }
 
-//TODO player turns with player obj
-//TODO timer
-//TODO undo after backend or code it and test using local storage
-//TODO: Surrender, ask for draw
+export function getTurn(fen: string): number {
+  const items = fen.split(" ");
+  return parseInt(items[items.length - 1]);
+}

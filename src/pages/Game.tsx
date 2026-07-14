@@ -13,15 +13,15 @@ export default function ChessBoard() {
 
   return (
     <div className="min-h-screen flex justify-center items-center p-4">
-      <div className="absolute top-0 left-0 w-[1vw]">
+      <div className="fixed top-4 left-4 w-[2vw]">
         <button
-          className="border bg-red-500 text-black"
+          className="z-50 flex items-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)\"
           onClick={() => navigate("/")}
         >
           Return
         </button>
       </div>
-      <div className="ml-70">
+      <div>
         <ChessBoardTSX board={board} />
       </div>
 

@@ -1,7 +1,21 @@
-import { Scale, Crown, Handshake, type LucideIcon } from "lucide-react";
+import {
+  Scale,
+  Crown,
+  Handshake,
+  type LucideIcon,
+  Timer,
+  Flag,
+} from "lucide-react";
 import type { Color } from "../../src/chess/chessTypes";
 
-export type GameState = "ongoing" | "checkmate" | "stalemate" | "draw";
+export type GameState =
+  | "ongoing"
+  | "closed"
+  | "checkmate"
+  | "stalemate"
+  | "draw"
+  | "timeout"
+  | "forfeit";
 
 interface GameOverModalProps {
   gameState: GameState;
@@ -10,10 +24,15 @@ interface GameOverModalProps {
   onClose: () => void;
 }
 
-const gameOverIcon: Record<Exclude<GameState, "ongoing">, LucideIcon> = {
+const gameOverIcon: Record<
+  Exclude<GameState, "ongoing" | "closed">,
+  LucideIcon
+> = {
   checkmate: Crown,
   stalemate: Scale,
   draw: Handshake,
+  timeout: Timer,
+  forfeit: Flag,
 };
 
 export function GameOverModal({
@@ -22,10 +41,11 @@ export function GameOverModal({
   onRematch,
   onClose,
 }: GameOverModalProps) {
-  if (gameState === "ongoing") return null;
+  if (gameState === "ongoing" || gameState === "closed") return null;
 
+  //Pops up who won or if it was draw/stalemate
   const content: Record<
-    Exclude<GameState, "ongoing">,
+    Exclude<GameState, "ongoing" | "closed">,
     { heading: string; subtext?: string }
   > = {
     checkmate: {
@@ -37,6 +57,14 @@ export function GameOverModal({
     },
     draw: {
       heading: "Draw",
+    },
+    timeout: {
+      heading: "Timeout",
+      subtext: `${winner === "white" ? "White" : "Black"} wins!`,
+    },
+    forfeit: {
+      heading: "Forfeit",
+      subtext: `${winner === "white" ? "White" : "Black"} wins by forfeit.`,
     },
   };
 

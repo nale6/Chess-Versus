@@ -745,7 +745,7 @@ export function check(color: Color, chessboard: ChessBoard): boolean {
   return inCheck;
 }
 
-//TODO finish returning legal moves that block check or move king
+//Checks legal moves
 export function checkMoves(
   color: Color,
   chessboard: ChessBoard,

@@ -3,6 +3,8 @@ interface sidebarModal {
   onClose: () => void;
 }
 
+//Might use laser
+
 export default function SidebarModal({ isOpen, onClose }: sidebarModal) {
   if (!isOpen) return null;
   return (

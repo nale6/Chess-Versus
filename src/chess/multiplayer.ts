@@ -12,6 +12,7 @@ import { database } from "../../backend/firebase";
 import { getAuth } from "firebase/auth";
 import type { Color } from "./chessTypes";
 import type { ChatMessage } from "./Chat";
+import type { GameState } from "../../components/modals/gameover-modal";
 
 //Random room code
 export function generateGameID(): string {
@@ -28,6 +29,8 @@ export async function createGame(
   gameId: string,
   userId: string,
   playerColor: "white" | "black",
+  timerSeconds: number,
+  timerIncrement: number,
 ): Promise<void> {
   const gameRef = ref(database, `games/${gameId}`);
   await set(gameRef, {
@@ -38,6 +41,8 @@ export async function createGame(
     status: "waiting",
     lastMove: null,
     createdAt: Date.now(),
+    timerSeconds,
+    timerIncrement,
   });
 }
 
@@ -83,7 +88,7 @@ export async function postMove(
   fen: string,
   currentTurn: "white" | "black",
   lastMove: string,
-  gameState: "ongoing" | "checkmate" | "stalemate" | "draw",
+  gameState: GameState,
   winner?: Color | null,
 ): Promise<void> {
   const gameRef = ref(database, `games/${gameId}`);
@@ -95,6 +100,18 @@ export async function postMove(
     gameState,
     winner: winner ?? null,
     status: gameState === "ongoing" ? "ongoing" : "finished",
+  });
+}
+
+export async function postDrawForfeit(
+  gameId: string,
+  action: "draw_offer" | "draw_accept" | "draw_decline" | "forfeit",
+  color: Color,
+): Promise<void> {
+  const gameRef = ref(database, `games/${gameId}`);
+  await update(gameRef, {
+    draw: action,
+    drawBy: color,
   });
 }
 
@@ -110,6 +127,7 @@ export function listenToGame(
     const data = snapshot.val();
     // console.log("Firebase Data:", data);
     if (data) callback(data);
+    // console.log(data);
   });
   //onValue returns unsubscribe function directly
   return unsubscribe;
@@ -164,6 +182,12 @@ export async function fetchChatHistory(gameId: string): Promise<ChatMessage[]> {
   return Object.values(data) as ChatMessage[];
 }
 
+export async function getGameData(gameId: string): Promise<GameData | null> {
+  const gameRef = ref(database, `games/${gameId}`);
+  const snapshot = await get(gameRef);
+  return snapshot.val() as GameData | null;
+}
+
 export interface GameData {
   playerWhite: string | null;
   playerBlack: string | null;
@@ -171,7 +195,11 @@ export interface GameData {
   fen: string;
   status: "waiting" | "ongoing" | "finished";
   lastMove: string | null;
-  gameState: "ongoing" | "checkmate" | "stalemate" | "draw";
+  gameState: "ongoing" | "checkmate" | "stalemate" | "draw" | "forfeit";
   winner: "white" | "black" | null;
   updatedAt: number;
+  timerSeconds: number;
+  timerIncrement: number;
+  draw: "draw_offer" | "draw_accept" | "draw_decline" | "forfeit" | null;
+  drawBy?: Color | null;
 }
