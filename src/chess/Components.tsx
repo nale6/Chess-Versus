@@ -407,12 +407,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [gameState, setGameState] = useState<GameState>("ongoing");
   const [winner, setWinner] = useState<Color | undefined>(undefined);
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+  const [, setAuthReady] = useState(false);
   const [, forceRender] = useReducer((x) => x + 1, 0);
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [drawOfferedByOpponent, setDrawOfferedByOpponent] = useState(false);
+  const [, setDrawOfferedByOpponent] = useState(false);
 
   const currentTurnRef = useRef<Color>("white");
   const turnRef = useRef(0);
@@ -455,8 +455,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setWinner(winner);
     updateGameState("timeout");
     gameStateRef.current = "timeout";
-    drawOfferedByOpponent;
-    authReady;
   }
 
   function getLegalMoves(square: Square): Move[] {
@@ -1376,8 +1374,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     startOnlineGame(null);
   }
 
-  async function startOnlineGame(initialData: GameData | null): Promise<void> {
-    initialData;
+  //initialData
+  async function startOnlineGame(_: GameData | null): Promise<void> {
     if (!gameIDRef.current) return;
 
     if (unsubscribeRef.current) {
