@@ -8,7 +8,6 @@ import {
   ChessQueen,
   ChessKing,
   Undo2,
-  Handshake,
 } from "lucide-react";
 import { useEffect, useReducer, useRef, useState } from "react";
 import {
@@ -30,7 +29,6 @@ import {
   completeFEN,
   coordinates,
   fenFormat,
-  getTurn,
   populateBoard,
 } from "./chessFunctions";
 import { GameOverModal } from "../../components/modals/gameover-modal";
@@ -457,6 +455,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setWinner(winner);
     updateGameState("timeout");
     gameStateRef.current = "timeout";
+    drawOfferedByOpponent;
+    authReady;
   }
 
   function getLegalMoves(square: Square): Move[] {
@@ -1377,6 +1377,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   }
 
   async function startOnlineGame(initialData: GameData | null): Promise<void> {
+    initialData;
     if (!gameIDRef.current) return;
 
     if (unsubscribeRef.current) {
