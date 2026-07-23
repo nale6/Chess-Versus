@@ -607,11 +607,13 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function onSuccessfulMove(): void {
     autoRankUp(currentTurnRef.current, board);
 
+    // console.log(board, enPassantRef.current, enPassantHistoryRef.current);
     const enPassant = latestEnPassant(
       board,
       enPassantRef.current,
       enPassantHistoryRef.current,
     );
+    // console.log(enPassant);
     const nextPlayer = currentTurnRef.current === "white" ? "black" : "white";
     currentTurnRef.current = nextPlayer;
     const color = currentTurnRef.current === "white" ? "b" : "w";
@@ -709,6 +711,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       const multiplayerWinner =
         currentTurnRef.current === "white" ? "black" : "white";
       setWinner(multiplayerWinner);
+      // console.log("Posting FEN:", fenRef.current[fenRef.current.length - 1]);
       postMove(
         gameIDRef.current,
         fenRef.current[fenRef.current.length - 1],

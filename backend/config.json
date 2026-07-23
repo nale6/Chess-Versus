@@ -1,0 +1,10 @@
+{
+  "apiKey": "AIzaSyDl9wUXY7KBqir2Jamv4jdwp8ZlDWzqWng",
+  "authDomain": "vs-chess.firebaseapp.com",
+  "projectId": "vs-chess",
+  "storageBucket": "vs-chess.firebasestorage.app",
+  "messagingSenderId": "163441280248",
+  "appId": "1:163441280248:web:621c6a94bd25e93bb5a70d",
+  "measurementId": "G-9KZ0WTDZ2V",
+  "databaseURL": "https://vs-chess-default-rtdb.firebaseio.com/"
+}

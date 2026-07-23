@@ -383,6 +383,8 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
       }
     }
   });
+
+  // console.log("applyfen");
 }
 
 //Parse moves
