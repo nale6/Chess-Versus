@@ -6,7 +6,7 @@ export async function getStockfishMove(
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const response = await fetch(
-      `/stockfish/api/s/v2.php?fen=${encodeURIComponent(fen)}&depth=${depth}`,
+      `https://stockfish.online/api/s/v2.php?fen=${encodeURIComponent(fen)}&depth=${depth}`,
     );
 
     //TODO: On screen message for rate limited. Maybe add higher timer because if playing quickly against stockfish, this happens pretty frequently.

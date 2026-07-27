@@ -1426,6 +1426,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         data.currentTurn === playerRef.current &&
         data.status === "ongoing"
       ) {
+        // console.log(data.fen);
         applyFenToBoard(data.fen, board);
         currentTurnRef.current = data.currentTurn;
         if (data.lastMove !== undefined) {
