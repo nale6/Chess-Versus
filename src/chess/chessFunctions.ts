@@ -354,9 +354,15 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
     Q: { type: "queen", color: "white" },
     K: { type: "king", color: "white" },
   };
+  // console.log("This is the fen being applied: ", fen);
 
-  const [position, , castling] = fen.split(" ");
+  const [position, , castling, enPassantSquare] = fen.split(" ");
   const ranks = position.split("/");
+
+  board.flat().forEach((sqr) => {
+    sqr.enPassant = false;
+    sqr.enPassant = false;
+  });
 
   ranks.forEach((rank, rowIndex) => {
     let colIndex = 0;
@@ -384,7 +390,18 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
     }
   });
 
-  // console.log("applyfen");
+  //If enpassant in fen is not a dash, it means enpassant opportunity is available to opponent
+  if (enPassantSquare !== "-") {
+    board.flat().forEach((sqr) => {
+      if (sqr.coordinate === enPassantSquare) {
+        //Mark same coordinate tile as eligible to take
+        sqr.enPassantTake = true;
+        //If row of the tile where en passant is possible is 2, it's a black piece, so enpassant must be set valid in the square in row 3. Otherwise white pawn moved and must be set in row 4 square
+        const pawnRow = sqr.row === 2 ? 3 : 4;
+        board[pawnRow][sqr.col].enPassant = true;
+      }
+    });
+  }
 }
 
 //Parse moves

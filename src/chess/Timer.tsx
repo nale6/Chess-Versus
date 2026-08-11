@@ -93,6 +93,11 @@ export function Timer({
     timeoutHappenedRef.current = false;
   }, [initialSeconds]);
 
+  //TODO: Fix seconds clearing in local/ai
+  useEffect(() => {
+    setTimeLeft(300);
+  }, [isGameOver]);
+
   return (
     <div
       className={`flex flex-col items-center justify-center rounded-xl px-6 py-3 transition-all duration-300
