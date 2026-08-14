@@ -36,6 +36,7 @@ export function Timer({
   useEffect(() => {
     setTimeLeft(initialSeconds);
     frozenTimeRef.current = null;
+    timeoutHappenedRef.current = false;
   }, [initialSeconds]);
 
   useEffect(() => {
@@ -92,11 +93,6 @@ export function Timer({
     frozenTimeRef.current = null;
     timeoutHappenedRef.current = false;
   }, [initialSeconds]);
-
-  //TODO: Fix seconds clearing in local/ai
-  useEffect(() => {
-    setTimeLeft(300);
-  }, [isGameOver]);
 
   return (
     <div

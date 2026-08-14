@@ -731,12 +731,6 @@ export function check(color: Color, chessboard: ChessBoard): boolean {
   moves.forEach((move) => {
     if (move.row >= 0 && move.row < 8 && move.col >= 0 && move.col < 8) {
       if (chessboard[move.row][move.col].squarePiece?.type === "king") {
-        //DEBUG
-        // console.log(
-        //   chessboard[move.row][move.col].squarePiece?.color,
-        //   "'s king is in check and needs to move.",
-        // );
-        // console.log(move);
         inCheck = true;
         checkingMoves.push(move);
       }
@@ -849,7 +843,6 @@ export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
         console.error("hasLegalMove infinite recursion");
         return true;
       }
-      // console.log("testing move:", moveCount, move);
       if (
         !simulateMove(
           square,
@@ -858,12 +851,10 @@ export function hasLegalMove(color: Color, chessboard: ChessBoard): boolean {
           color,
         )
       ) {
-        // console.log("legal move found:", move);
         return true;
       }
     }
   }
-  // console.log("no legal moves found");
   return false;
 }
 

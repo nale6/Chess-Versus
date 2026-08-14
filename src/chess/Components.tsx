@@ -62,8 +62,6 @@ type SquareProps = {
   playerColor: Color;
 };
 
-//TODO: Check if sizing is fine for really small viewports, especially on mobile
-//TODO: Mirror for other player's pov (7 - row / col should work)
 export function SquareTSX({ square, onClick, playerColor }: SquareProps) {
   return (
     <div
@@ -443,7 +441,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const gameStateRef = useRef<GameState>("ongoing");
   const gameStartRef = useRef(false);
   const lastHandledDrawRef = useRef<string | null>(null);
-  // const multiplayerWinRef = useRef<Color | null>(null);
+  const timerResetRef = useRef<number>(0);
 
   const showGameOverModal = gameState !== "ongoing";
 
@@ -480,16 +478,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
     //Filter moves based on if player would be in check or not after getting list of all moves
     return moves.filter((move) => {
-      // if (move.row === 2 && move.col === 0) {
-      // console.log("Test");
-      // }
       const isLegal = !simulateMove(
         square,
         board,
         { ...square, row: move.row, col: move.col },
         currentTurnRef.current,
       );
-      // console.log("Move", moves, isLegal);
       return isLegal;
     });
   }
@@ -511,7 +505,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         board[square!.row + direction][square!.col].enPassantTake = true;
       }
     });
-    // console.log(moves);
   }
 
   function castling(board: ChessBoard, player: Color, direction: string): void {
@@ -554,7 +547,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       square.highlighted = false;
       unHighlight();
       unSelect();
-      // console.log("Not their turn");
     }
   }
 
@@ -605,19 +597,19 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function onSuccessfulMove(): void {
     autoRankUp(currentTurnRef.current, board);
 
-    // console.log(board, enPassantRef.current, enPassantHistoryRef.current);
     const enPassant = latestEnPassant(
       board,
       enPassantRef.current,
       enPassantHistoryRef.current,
     );
-    // console.log(enPassant);
     const nextPlayer = currentTurnRef.current === "white" ? "black" : "white";
     currentTurnRef.current = nextPlayer;
     const color = currentTurnRef.current === "white" ? "b" : "w";
     removeCastle();
+
     //Raise after white's turn
     if (currentTurnRef.current === "white") turnRef.current++;
+
     //Raise on other turn in multiplayer due to latency
     if (
       currentTurnRef.current === "black" &&
@@ -636,21 +628,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         }
       });
     }
-
-    // console.log(
-    //   completeFEN(
-    //     board,
-    //     fenFormat(board),
-    //     color,
-    //     halfRef.current,
-    //     turnRef.current,
-    //     enPassant,
-    //   ),
-    // );
-
-    // if (enPassantRef.current !== undefined) {
-    //   console.log(enPassantRef.current);
-    // }
 
     if (enPassant) {
       board.flat().forEach((sqr) => {
@@ -671,35 +648,18 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       ),
     );
 
-    //Logs complete FEN. FENCHECK
-    // console.log(
-    //   completeFEN(
-    //     board,
-    //     fenFormat(board),
-    //     color,
-    //     halfRef.current,
-    //     turnRef.current,
-    //     enPassant,
-    //   ),
-    // );
-
     const state = getGameState(nextPlayer, board);
     if (state === "checkmate") {
-      // console.log(`Checkmate, ${currentTurnRef.current} wins.`);
-      //TODO fix notation vvv
       setWinner(currentTurnRef.current === "white" ? "black" : "white");
       gameStateRef.current = "checkmate";
       updateGameState("checkmate");
     } else if (state === "stalemate") {
-      // console.log("Draw by stalemate.");
       gameStateRef.current = "stalemate";
       updateGameState("stalemate");
     } else if (isFiftyMoveDraw(halfRef.current)) {
-      // console.log("Draw by 50 move rule.");
       gameStateRef.current = "draw";
       updateGameState("draw");
     } else if (isThreeRepetitionDraw(fenRef.current)) {
-      // console.log("Draw by repetition.");
       gameStateRef.current = "draw";
       updateGameState("draw");
     }
@@ -709,7 +669,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       const multiplayerWinner =
         currentTurnRef.current === "white" ? "black" : "white";
       setWinner(multiplayerWinner);
-      // console.log("Posting FEN:", fenRef.current[fenRef.current.length - 1]);
       postMove(
         gameIDRef.current,
         fenRef.current[fenRef.current.length - 1],
@@ -718,7 +677,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         gameStateRef.current,
         multiplayerWinner,
       );
-      // console.log(fenRef.current[fenRef.current.length - 1]);
     }
 
     if (vsAIRef.current && nextPlayer === colorAIRef.current) {
@@ -777,257 +735,147 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     checkRef.current = check(currentTurnRef.current, board);
   }
 
-  //TODO: Proper highlighting. Still buggy in what it shows, mostly an issue due to inconsistency
+  //Selects square
+  function selectSquare(square: Square): void {
+    setClicked(true);
+    setPrevSquare(square);
+    setStorePiece(square.squarePiece);
+    square.selected = true;
+    highlightLegalMoves(getLegalMoves(square));
+  }
+
+  //Clear selected piece
+  function clearSelection(): void {
+    if (prevSquare) prevSquare.selected = false;
+    setStorePiece(null);
+    setPrevSquare(null);
+    setClicked(false);
+    unHighlight();
+  }
+
+  //Switches selected piece with another
+  function switchSelection(prevSquare: Square, square: Square): void {
+    prevSquare.selected = false;
+    setStorePiece(square.squarePiece);
+    setPrevSquare(square);
+    unHighlight();
+    highlightLegalMoves(getLegalMoves(square));
+    square.selected = true;
+  }
+
+  //Checks if legal, where the next move does not leave the king in
+  function isLegalDestination(prevSquare: Square, square: Square): boolean {
+    if (!square.highlighted) return false;
+    const leavesKingInCheck = simulateMove(
+      prevSquare,
+      board,
+      square,
+      currentTurnRef.current,
+    );
+    return !leavesKingInCheck;
+  }
+
+  //Simulates move
+  function attemptMove(
+    prevSquare: Square,
+    square: Square,
+    storePiece: Piece,
+    playerIsInCheck: boolean,
+  ): boolean {
+    if (!isLegalDestination(prevSquare, square)) return false;
+
+    const isEnPassantCapture =
+      square.enPassantTake &&
+      storePiece.type === "pawn" &&
+      square.squarePiece === null &&
+      Math.abs(prevSquare.col - square.col) === 1;
+    const isCapture = square.squarePiece !== null || isEnPassantCapture;
+
+    logMove(
+      playerIsInCheck ? turnRef.current : turnRef.current + 1,
+      storePiece.type,
+      isCapture ? "takes" : "moves",
+      prevSquare.coordinate,
+      square.coordinate,
+    );
+
+    //Move piece to the destination square
+    square.squarePiece = storePiece;
+    if (prevSquare.squarePiece?.moved === false) {
+      prevSquare.squarePiece.moved = true;
+    }
+    prevSquare.squarePiece = null;
+    prevSquare.selected = false;
+
+    //Special moves only relevant on moving piece to empty square
+    if (square.castle) {
+      castling(board, currentTurnRef.current, square.castleDir!);
+    }
+    if (isEnPassantCapture) {
+      enPassant(board, square, currentTurnRef.current);
+    }
+
+    //Fifty-move-rule clock resets on any pawn move or capture
+    halfRef.current =
+      storePiece.type === "pawn" || isCapture ? 0 : halfRef.current + 1;
+    checkRef.current = false;
+    setClicked(false);
+    setPrevSquare(null);
+    setStorePiece(null);
+    unHighlight();
+    onSuccessfulMove();
+    return true;
+  }
+
+  //Refactored handleclick
   function handleClick(square: Square): void {
     if (gameStateRef.current !== "ongoing") return;
-    //TODO: Remove debugs
-    // console.log("handleClick fired, currentTurn:", currentTurnRef.current);
+
     const playerIsInCheck = check(currentTurnRef.current, board);
-    //Initial click on empty square
-    if (!click && !square.squarePiece) {
-      // console.log("Clicked on empty square with no clicks beforehand");
-      setStorePiece(null);
-      setPrevSquare(null);
-      setClicked(false);
-      unHighlight();
-    }
-    //Already clicked -> clicking on a square with a piece
-    else if (click && square.squarePiece) {
-      // console.log("Clicked on piece while already having clicked");
-      //grab legal moves function here
-      if (prevSquare) {
-        //If clicking on square with different color piece
-        if (prevSquare.squarePiece?.color !== square.squarePiece.color) {
-          if (square.highlighted === true && !playerIsInCheck) {
-            const inCheckAfterMove = simulateMove(
-              prevSquare,
-              board,
-              square,
-              currentTurnRef.current,
-            );
-            if (inCheckAfterMove) {
-              setPrevSquare(null);
-              setStorePiece(null);
-              prevSquare.selected = false;
-              setClicked(false);
-              unHighlight();
-              return;
-            }
 
-            logMove(
-              turnRef.current + 1,
-              storePiece!.type,
-              "takes",
-              prevSquare.coordinate,
-              square.coordinate,
-            );
-
-            square.squarePiece = storePiece;
-            prevSquare.selected = false;
-
-            setClicked(false);
-            unHighlight();
-
-            if (prevSquare.squarePiece!.moved === false) {
-              prevSquare.squarePiece!.moved = true;
-            }
-
-            prevSquare.squarePiece = null;
-            halfRef.current = 0;
-            fenRef.current = [];
-            onSuccessfulMove();
-          }
-          //If in check, simulate move, if still in check, unhighlight and don't use move, else use move
-          else if (square.highlighted === true && playerIsInCheck) {
-            const stillInCheck = simulateMove(
-              prevSquare,
-              board,
-              square,
-              currentTurnRef.current,
-            );
-            if (stillInCheck) {
-              prevSquare.selected = false;
-              setStorePiece(null);
-              setPrevSquare(null);
-              setClicked(false);
-              unHighlight();
-              return;
-            } else {
-              logMove(
-                turnRef.current,
-                storePiece!.type,
-                "takes",
-                prevSquare.coordinate,
-                square.coordinate,
-              );
-
-              checkRef.current = false;
-              setClicked(false);
-              square.squarePiece = storePiece;
-              prevSquare!.squarePiece = null;
-              prevSquare!.selected = false;
-              setPrevSquare(null);
-              setStorePiece(null);
-              unHighlight();
-              onSuccessfulMove();
-            }
-          } else {
-            prevSquare.selected = false;
-            setStorePiece(null);
-            setPrevSquare(null);
-            setClicked(false);
-            unHighlight();
-          }
-        }
-        //If clicking on same square
-        else if (prevSquare === square) {
-          prevSquare.selected = false;
-          setStorePiece(null);
-          setPrevSquare(null);
-          setClicked(false);
-          unHighlight();
-        }
-        //Other cases are clicking on non-same square with same color piece
-        else {
-          prevSquare.selected = false;
-          setStorePiece(square.squarePiece);
-          setPrevSquare(square);
-          unHighlight();
-          highlightLegalMoves(getLegalMoves(square));
-          square.selected = true;
-        }
-      }
-    }
-    //Initial click -> Click on square with piece
-    else if (square.squarePiece && !click) {
-      // console.log("Initial click on square with piece");
-      // board.flat().forEach((sqr) => {
-      //   console.log(sqr.coordinate, sqr.enPassant);
-      // });
-      setClicked(true);
-      setPrevSquare(square);
-      setStorePiece(square.squarePiece);
-      square.selected = true;
-      highlightLegalMoves(getLegalMoves(square));
-    }
-    //Already clicked -> Click on square with no piece
-    else if (!square.squarePiece && click && storePiece !== null) {
-      //grab legal moves function here
-      //vvv Discovered check, if after user's move the king gets put in check, they can't perform this move
-      const inCheckAfterMove = simulateMove(
-        prevSquare!,
-        board,
-        square,
-        currentTurnRef.current,
-      );
-      if (square.highlighted && storePiece !== null && !playerIsInCheck) {
-        //Discovered check
-        if (inCheckAfterMove) {
-          setPrevSquare(null);
-          setStorePiece(null);
-          prevSquare!.selected = false;
-          setClicked(false);
-          unHighlight();
-          return;
-        }
-        if (!square.squarePiece) {
-          //Detect en passant captures as takes
-          const wasEnPassantCapture =
-            square.enPassantTake &&
-            storePiece.type === "pawn" &&
-            Math.abs(prevSquare!.col - square.col) === 1;
-
-          logMove(
-            turnRef.current + 1,
-            storePiece!.type,
-            wasEnPassantCapture ? "takes" : "moves",
-            prevSquare!.coordinate,
-            square.coordinate,
-          );
-          // console.log(turnRef.current);
-
-          square.squarePiece = storePiece;
-          setClicked(false);
-          if (prevSquare?.squarePiece!.moved === false) {
-            prevSquare!.squarePiece!.moved = true;
-          }
-          if (prevSquare !== null) {
-            prevSquare.squarePiece = null;
-            prevSquare.selected = false;
-            setStorePiece(null);
-          }
-          if (square.castle) {
-            castling(board, currentTurnRef.current, square.castleDir!);
-          }
-          if (square.enPassantTake && storePiece.type === "pawn") {
-            enPassant(board, square, currentTurnRef.current);
-          }
-          if (storePiece?.type === "pawn") {
-            halfRef.current = 0;
-          } else {
-            halfRef.current++;
-          }
-          onSuccessfulMove();
-        }
-      }
-
-      //Same thing, if it's in check, unhighlight all and forget move, else continue with move
-      else if (square.highlighted && storePiece !== null && playerIsInCheck) {
-        checkRef.current = simulateMove(
-          prevSquare!,
-          board,
-          square,
-          currentTurnRef.current,
-        );
-        const stillInCheck = simulateMove(
-          prevSquare!,
-          board,
-          square,
-          currentTurnRef.current,
-        );
-        if (stillInCheck) {
-          prevSquare!.selected = false;
-          setStorePiece(null);
-          setClicked(false);
-          unHighlight();
-          return;
-        } else {
-          const wasEnPassantCapture =
-            square.enPassantTake && storePiece.type === "pawn";
-          logMove(
-            turnRef.current,
-            storePiece!.type,
-            wasEnPassantCapture ? "takes" : "moves",
-            prevSquare!.coordinate,
-            square.coordinate,
-          );
-          if (square.castle) {
-            castling(board, currentTurnRef.current, square.castleDir!);
-          }
-          if (storePiece.type === "pawn") {
-            halfRef.current = 0;
-          } else {
-            halfRef.current++;
-          }
-          checkRef.current = false;
-          setClicked(false);
-          square.squarePiece = storePiece;
-
-          prevSquare!.squarePiece = null;
-          prevSquare!.selected = false;
-          setPrevSquare(null);
-          setStorePiece(null);
-          unHighlight();
-          onSuccessfulMove();
-        }
+    //Nothing selected yet
+    if (!click) {
+      if (square.squarePiece) {
+        selectSquare(square);
       } else {
-        prevSquare!.selected = false;
-        setStorePiece(null);
-        setPrevSquare(null);
-        setClicked(false);
-        unHighlight();
+        clearSelection();
       }
-      unHighlight();
+      return;
+    }
+
+    //If piece is already selected
+    if (!prevSquare || storePiece === null) return; //Defensive, shouldn't happen if click is true
+
+    //Clicked on another square with piece
+    if (square.squarePiece) {
+      //If clicked on same square again, unselect
+      if (prevSquare === square) {
+        clearSelection();
+      }
+      //If selected a different, but same color piece
+      else if (prevSquare.squarePiece?.color === square.squarePiece.color) {
+        switchSelection(prevSquare, square);
+      }
+      //Otherwise simulate move on square with enemy piece
+      else {
+        const moved = attemptMove(
+          prevSquare,
+          square,
+          storePiece,
+          playerIsInCheck,
+        );
+        if (!moved) clearSelection();
+      }
+    }
+    //If clicking on square with no piece
+    else {
+      const moved = attemptMove(
+        prevSquare,
+        square,
+        storePiece,
+        playerIsInCheck,
+      );
+      if (!moved) clearSelection();
     }
   }
 
@@ -1043,22 +891,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     boardHistoryRef.current.push(baseState);
     setChatMessages([]);
     gameStartRef.current = false;
-
-    // const newBoard = populateBoard(structuredClone(board));
-    // board.forEach((rank, i) => {
-    //   rank.forEach((square, j) => {
-    //     Object.assign(square, newBoard[i][j]);
-    //   });
-    // });
+    timerResetRef.current++;
   }
 
   async function handleAiMove(color: Color): Promise<void> {
-    // console.log(
-    //   "handleAiMove called:",
-    //   aiResponseWaitRef.current,
-    //   "color:",
-    //   color,
-    // );
     const playerColor: Color = color === "white" ? "black" : "white";
     if (aiResponseWaitRef.current) return;
     aiResponseWaitRef.current = true;
@@ -1093,7 +929,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         turnRef.current,
         enPassant,
       );
-      // console.log("Sent request");
 
       //First move randomizer since stockfish api always returns e2e4 consistently as first move if playing white
       //Tried lichess but needs a key and didn't want to make an account.
@@ -1208,11 +1043,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       setClicked(false);
     } finally {
       aiResponseWaitRef.current = false;
-      //TODO: Remove debugs
-      // console.log("AI move complete --- currentTurnRef:", currentTurnRef.current);
-      // console.log("aiResponseWaitRef:", aiResponseWaitRef.current);
-      // console.log("vsAIRef:", vsAIRef.current);
-      // console.log("colorAIRef:", colorAIRef.current);
 
       //Rerender board
       boardHistoryRef.current.push({
@@ -1232,7 +1062,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     gameStateRef.current = state;
     setGameState(state);
     if (gameStateRef.current !== "ongoing") gameStartRef.current = false;
-    // console.log(gameStateRef.current);
   }
 
   function handleGameStart(config: GameConfig): void {
@@ -1278,13 +1107,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       } else boardHistoryIndexRef.current--;
     }
 
-    // if (gameConfig?.mode === "ai" && boardHistoryRef.current.length > 2) {
-    //   boardHistoryRef.current.pop();
-    // }
     boardHistoryIndexRef.current--;
     const prev = boardHistoryRef.current[boardHistoryIndexRef.current]!;
 
-    //TODO: Bugfix that black pieces don't get moved reset if undone twice
     board.forEach((rank, i) => {
       rank.forEach((square, j) => {
         Object.assign(square, prev.board[i][j]);
@@ -1393,16 +1218,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         : 0;
 
     const gameUnsub = listenToGame(gameIDRef.current, (data) => {
-      // console.log("Listener:");
-      // console.log("Status:", data.status);
-      // console.log("Game State", data.gameState);
-      // console.log("Winner:", data.winner);
-      // console.log("Game State Ref:", gameStateRef.current);
-
       const winner = data.winner !== null ? data.winner : undefined;
 
       if (data.status === "finished" && gameStateRef.current === "ongoing") {
-        // console.log("Game over condition met");
         if (data.gameState === "checkmate") {
           setWinner(winner);
           updateGameState("checkmate");
@@ -1419,14 +1237,11 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         }
       }
 
-      // console.log(gameStateRef.current);
-
       if (
         data.lastMove !== null &&
         data.currentTurn === playerRef.current &&
         data.status === "ongoing"
       ) {
-        // console.log("Applying to board: ", data.fen);
         applyFenToBoard(data.fen, board);
         currentTurnRef.current = data.currentTurn;
         if (data.lastMove !== undefined) {
@@ -1442,15 +1257,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         if (data.draw === "draw_offer" && !alreadyHandled) {
           lastHandledDrawRef.current = drawSignature;
           setDrawOfferedByOpponent(true);
-          // setChatMessages((prev) => [
-          //   ...prev,
-          //   {
-          //     type: "message",
-          //     sender: data.drawBy === "white" ? "white" : "black",
-          //     text: `${data.drawBy} offers a draw`,
-          //     timestamp: Date.now(),
-          //   },
-          // ]);
         } else if (data.draw === "draw_accept" && !alreadyHandled) {
           lastHandledDrawRef.current = drawSignature;
           setDrawOfferedByOpponent(false);
@@ -1458,15 +1264,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         } else if (data.draw === "draw_decline" && !alreadyHandled) {
           lastHandledDrawRef.current = drawSignature;
           setDrawOfferedByOpponent(false);
-          // setChatMessages((prev) => [
-          //   ...prev,
-          //   {
-          //     type: "message",
-          //     sender: data.drawBy === "white" ? "white" : "black",
-          //     text: "Draw declined",
-          //     timestamp: Date.now(),
-          //   },
-          // ]);
         } else if (data.draw === "forfeit" && !alreadyHandled) {
           lastHandledDrawRef.current = drawSignature;
           const winner: Color = data.drawBy === "white" ? "black" : "white";
@@ -1517,7 +1314,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
     if (gameConfig?.mode === "multiplayer" && gameIDRef.current) {
       postChatMessage(gameIDRef.current, entry);
-      // console.log(entry);
     }
   }
 
@@ -1551,12 +1347,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       postChatMessage(gameIDRef.current, entry);
     } else {
       //Local mode auto shows draw offer in chat, other player clicks accept. Not sure if really needed.
-      // setDrawOfferedByOpponent(true);
     }
   }
 
   function handleDrawResponse(accepted: boolean): void {
-    // setDrawOfferedByOpponent(false);
     const responseEntry: ChatMessage = {
       type: "message",
       sender: playerRef.current,
@@ -1696,6 +1490,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         />
         <div className="flex gap-10 pt-3">
           <Timer
+            key={`white-${gameIDRef.current ?? timerResetRef.current}`}
             initialSeconds={timerSeconds}
             isActive={
               currentTurnRef.current === playerRef.current &&
@@ -1708,6 +1503,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             label={playerRef.current === "white" ? "White" : "Black"}
           />
           <Timer
+            key={`black-${gameIDRef.current ?? timerResetRef.current}`}
             initialSeconds={timerSeconds}
             isActive={
               currentTurnRef.current !== playerRef.current &&
@@ -1742,30 +1538,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           onClose={() => updateGameState("closed")}
         ></GameOverModal>
       )}
-      {/* {drawOfferedByOpponent && gameState === "ongoing" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 rounded-2xl bg-zinc-900 border border-gray-700 px-10 py-8 shadow-2xl w-full max-w-xs mx-4">
-            <Handshake size={36} className="text-white" />
-            <p className="text-white font-medium text-center">
-              Your opponent offers a draw
-            </p>
-            <div className="flex w-full gap-3">
-              <button
-                onClick={() => handleDrawResponse(false)}
-                className="flex-1 rounded-lg bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
-              >
-                Decline
-              </button>
-              <button
-                onClick={() => handleDrawResponse(true)}
-                className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors"
-              >
-                Accept
-              </button>
-            </div>
-          </div>
-        </div>
-      )} */}
     </div>
   );
 }

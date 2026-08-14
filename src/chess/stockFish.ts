@@ -17,10 +17,8 @@ export async function getStockfishMove(
     }
 
     const data = await response.json();
-    // console.log("Stockfish response: ", data);
 
     if (!data.success || !data.bestmove) {
-      // console.error("Stockfish returned no move");
       return null;
     }
 
@@ -28,13 +26,11 @@ export async function getStockfishMove(
     const move = parts[1];
 
     if (!move) {
-      // console.error("Could not parse move: ", data.bestmove);
       return null;
     }
 
     return move;
   } catch (error) {
-    // console.error("Stockfish fetch failed: ", error);
     return null;
   }
 }

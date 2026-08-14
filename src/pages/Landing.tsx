@@ -1,13 +1,9 @@
-//TODO: Use hashrouting for now and change to browser later.
-//TODO: Find good website for hosting. Vercel may not like client server state changes. Research more on this.
-//TODO: Check on phone later if having menu appear on really small viewports looks good, or revert to way it was before otherwise
 //TODO: Choose piece to rank up when pawn hits final row. Right now just auto upgrades to queen.
-//TODO: Draggable pieces
+//TODO: Draggable pieces & animation on movement
 //TODO: Once everything is done, add extra mechanics to truly be unique.
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// import SidebarModal from "../../components/modals/sidebar-modal";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChessPawn,
@@ -19,7 +15,6 @@ import {
 } from "lucide-react";
 
 const Landing = () => {
-  // const [open, setOpen] = useState(false);
   const openingIndexRef = useRef<number | null>(null);
   const generationRef = useRef(0);
   const navigate = useNavigate();

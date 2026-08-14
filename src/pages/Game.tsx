@@ -8,8 +8,8 @@ export default function ChessBoard() {
   const initBoard = populateBoard(createEmptyBoard());
   const [board] = useState(initBoard);
 
-  //TODO: Chat, reevaluate over game and see points, visibly display what material you and opponent have taken, sidebar with profile, mock elo rating and system, change return/back button
-  //TODO: Timer, redo button, css fixing
+  //TODO: Reevaluate over game and see points, visibly display what material you and opponent have taken, sidebar with profile, mock elo rating and system, change return/back button
+  //TODO: Redo button
 
   return (
     <div className="min-h-screen flex justify-center items-center p-4">
@@ -24,10 +24,6 @@ export default function ChessBoard() {
       <div>
         <ChessBoardTSX board={board} />
       </div>
-
-      {/* <div className="ml-50 p-6 scale-200 pt-70 pr-15 bg-gray-600">
-        <div className="size-20 text-sm overflow-y-auto">Test</div>
-      </div> */}
     </div>
   );
 }

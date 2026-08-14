@@ -25,5 +25,4 @@ export function initAuth(): Promise<string> {
     });
   });
 }
-// const analytics = getAnalytics(app);
 export const database = getDatabase(app);

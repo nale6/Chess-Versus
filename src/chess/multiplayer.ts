@@ -125,9 +125,7 @@ export function listenToGame(
   const unsubscribe = onValue(gameRef, (snapshot) => {
     //Read fresh from snapshot
     const data = snapshot.val();
-    // console.log("Firebase Data:", data);
     if (data) callback(data);
-    // console.log(data);
   });
   //onValue returns unsubscribe function directly
   return unsubscribe;

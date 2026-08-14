@@ -190,9 +190,6 @@ export function coordinates(board: ChessBoard): void {
     const coord = file + (8 - square.row);
     square.coordinate = coord;
   });
-  // board.flat().forEach((square) => {
-  //   console.log(square.coordinate);
-  // });
 }
 
 export function fenFormat(board: ChessBoard): string {
@@ -334,7 +331,6 @@ export function completeFEN(
   fenComplete += halfClock + " ";
   fenComplete += turns;
 
-  // console.log(fenComplete);
   return fenComplete;
 }
 
@@ -354,7 +350,6 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
     Q: { type: "queen", color: "white" },
     K: { type: "king", color: "white" },
   };
-  // console.log("This is the fen being applied: ", fen);
 
   const [position, , castling, enPassantSquare] = fen.split(" ");
   const ranks = position.split("/");
