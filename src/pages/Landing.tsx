@@ -13,11 +13,19 @@ import {
   ChessQueen,
   ChessKing,
 } from "lucide-react";
+import { GameSetupModal } from "../../components/modals/gamemode-modal";
+import { useGameSetup } from "../chess/useGameSetup";
 
 const Landing = () => {
   const openingIndexRef = useRef<number | null>(null);
   const generationRef = useRef(0);
   const navigate = useNavigate();
+
+  const [showSetup, setShowSetup] = useState(false);
+  const { gameCode, waitingForOpponent, handleCreateGame, handleJoinGame } =
+    useGameSetup(({ config, gameID }) => {
+      navigate("/game", { state: { config, gameID } });
+    });
 
   type Piece = {
     id: string;
@@ -179,8 +187,6 @@ const Landing = () => {
 
   //A setTimeout wrapper that can be paused and resumed without losing track of how much delay is left.
   //Need this due to a bug where tabbing out causes moves to keep going on the board, and the animation will 'catch up' simultaneously
-  //Still bugs sometimes but spent enough time on this and mostly works now
-  //TODO: Find a complete fix, but for now is very much passable
   function createPausableTimer(callback: () => void, delay: number) {
     let remaining = delay;
     let startedAt = Date.now();
@@ -349,12 +355,23 @@ const Landing = () => {
             className="px-8 py-4 ml-4 -mr-4 pl-20 pr-20 l-2 rounded-xl bg-white text-zinc-900 font-semibold text-base
                 hover:bg-gray-200 active:scale-95 transition-all duration-150 shadow-lg shadow-black/30
                 select-none cursor-pointer"
-            onClick={() => navigate("/game")}
+            onClick={() => setShowSetup(true)}
           >
             Start a Game
           </button>
         </div>
       </div>
+
+      {showSetup && (
+        <GameSetupModal
+          onStart={(config) => navigate("/game", { state: { config } })}
+          onCreateGame={handleCreateGame}
+          onJoinGame={handleJoinGame}
+          gameCode={gameCode}
+          waitingForOpponent={waitingForOpponent}
+          onClose={() => setShowSetup(false)}
+        />
+      )}
     </>
   );
 };

@@ -38,13 +38,8 @@ import {
   type GameConfig,
 } from "../../components/modals/gamemode-modal";
 import {
-  createGame,
   fetchChatHistory,
-  generateGameID,
   generateUserID,
-  getCurrentUserID,
-  getGameData,
-  joinGame,
   listenToChat,
   listenToGame,
   postChatMessage,
@@ -55,6 +50,8 @@ import {
 import { initAuth } from "../../backend/firebase";
 import { Chat, type ChatMessage } from "./Chat";
 import { Timer } from "./Timer";
+import { useGameSetup } from "./useGameSetup";
+import { useLocation } from "react-router-dom";
 
 type SquareProps = {
   square: Square;
@@ -407,8 +404,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [, setAuthReady] = useState(false);
   const [, forceRender] = useReducer((x) => x + 1, 0);
-  const [gameCode, setGameCode] = useState<string | null>(null);
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [, setDrawOfferedByOpponent] = useState(false);
 
@@ -442,6 +437,14 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const gameStartRef = useRef(false);
   const lastHandledDrawRef = useRef<string | null>(null);
   const timerResetRef = useRef<number>(0);
+
+  const location = useLocation();
+  const { gameCode, waitingForOpponent, handleCreateGame, handleJoinGame } =
+    useGameSetup(({ config, gameID }) => {
+      gameIDRef.current = gameID;
+      handleGameStart(config);
+      startOnlineGame(null);
+    });
 
   const showGameOverModal = gameState !== "ongoing";
 
@@ -892,6 +895,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setChatMessages([]);
     gameStartRef.current = false;
     timerResetRef.current++;
+    gameIDRef.current = null;
   }
 
   async function handleAiMove(color: Color): Promise<void> {
@@ -1085,6 +1089,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     vsAIRef.current = config.mode === "ai";
     colorAIRef.current = config.playerColor === "white" ? "black" : "white";
     gameStartRef.current = false;
+    timerResetRef.current++;
 
     //Reset UI states
     updateGameState("ongoing");
@@ -1134,69 +1139,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setStorePiece(null);
     setPrevSquare(null);
     unHighlight();
-  }
-
-  async function handleCreateGame(
-    playerColor: "white" | "black",
-    timerSeconds: number,
-    timerIncrement: number,
-  ): Promise<void> {
-    const gameId = generateGameID();
-    gameIDRef.current = gameId;
-    playerRef.current = playerColor;
-    colorAIRef.current = playerColor === "white" ? "black" : "white";
-
-    await createGame(
-      gameId,
-      getCurrentUserID(),
-      playerColor,
-      timerSeconds ?? 300,
-      timerIncrement ?? 0,
-    );
-    setGameCode(gameId);
-    setWaitingForOpponent(true);
-
-    //Listen for opponent joining, then switch to game listener
-    const unsub = listenToGame(gameId, (data) => {
-      if (data.status === "ongoing") {
-        setWaitingForOpponent(false);
-        //Unsubscribe waiting listener before starting game listener
-        unsub();
-        unsubscribeRef.current = null;
-        startOnlineGame(null);
-
-        //Set game config so the board renders and piece locking works
-        handleGameStart({
-          mode: "multiplayer",
-          playerColor,
-          timerSeconds: data.timerSeconds ?? 300,
-          timerIncrement: data.timerIncrement ?? 0,
-        });
-      }
-    });
-    unsubscribeRef.current = unsub;
-  }
-
-  async function handleJoinGame(gameId: string): Promise<void> {
-    gameIDRef.current = gameId;
-
-    const result = await joinGame(gameId, getCurrentUserID());
-    if (!result.success || !result.assignedColor) {
-      console.error("Failed to join game");
-      return;
-    }
-
-    playerRef.current = result.assignedColor;
-
-    const gameData = await getGameData(gameId);
-
-    handleGameStart({
-      mode: "multiplayer",
-      playerColor: result.assignedColor,
-      timerSeconds: gameData?.timerSeconds ?? 300,
-      timerIncrement: gameData?.timerIncrement ?? 0,
-    });
-    startOnlineGame(null);
   }
 
   //initialData
@@ -1426,6 +1368,15 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
       userIDRef.current = uid;
       setAuthReady(true);
     });
+
+    const state = location.state as
+      | { config?: GameConfig; gameID?: string }
+      | null;
+    if (state?.config) {
+      if (state.gameID) gameIDRef.current = state.gameID;
+      handleGameStart(state.config);
+      if (state.gameID) startOnlineGame(null);
+    }
   }, []);
 
   //On start select game configurations

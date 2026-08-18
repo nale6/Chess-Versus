@@ -83,17 +83,6 @@ export function Timer({
     }
   });
 
-  useEffect(() => {
-    setTimeLeft(initialSeconds);
-    frozenTimeRef.current = null;
-  }, [initialSeconds]);
-
-  useEffect(() => {
-    setTimeLeft(initialSeconds);
-    frozenTimeRef.current = null;
-    timeoutHappenedRef.current = false;
-  }, [initialSeconds]);
-
   return (
     <div
       className={`flex flex-col items-center justify-center rounded-xl px-6 py-3 transition-all duration-300

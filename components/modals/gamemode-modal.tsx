@@ -11,6 +11,7 @@ interface GameSetupModalProps {
   onJoinGame: (gameId: string, playerColor: "white" | "black") => Promise<void>;
   gameCode: string | null;
   waitingForOpponent: boolean;
+  onClose?: () => void;
 }
 
 export interface GameConfig {
@@ -27,6 +28,7 @@ export function GameSetupModal({
   onJoinGame,
   gameCode,
   waitingForOpponent,
+  onClose,
 }: GameSetupModalProps) {
   const [mode, setMode] = useState<"ai" | "multiplayer" | "local">("local");
   const [playerColor, setPlayerColor] = useState<Color>("white");
@@ -51,9 +53,20 @@ export function GameSetupModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="flex flex-col gap-6 rounded-2xl bg-zinc-900 border border-gray-700 px-10 py-10 shadow-2xl w-full max-w-sm mx-4">
-        <h2 className="text-xl font-semibold text-white text-center select-none">
-          New Game
-        </h2>
+        <div className="relative">
+          <h2 className="text-xl font-semibold text-white text-center select-none">
+            New Game
+          </h2>
+          {onClose && (
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute -top-2 -right-2 w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors cursor-pointer select-none"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
         {/*Mode selection*/}
         <div className="flex flex-col gap-2">
