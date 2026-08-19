@@ -9,7 +9,7 @@ import {
   ChessKing,
   Undo2,
 } from "lucide-react";
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   autoRankUp,
   bishopMoves,
@@ -28,6 +28,7 @@ import {
   applyFenToBoard,
   completeFEN,
   coordinates,
+  createEmptyBoard,
   fenFormat,
   populateBoard,
 } from "./chessFunctions";
@@ -40,6 +41,7 @@ import {
 import {
   fetchChatHistory,
   generateUserID,
+  getGameData,
   listenToChat,
   listenToGame,
   postChatMessage,
@@ -47,11 +49,20 @@ import {
   postMove,
   type GameData,
 } from "./multiplayer";
+import {
+  clearPersistedGame,
+  createInitialPersistedGame,
+  generateUniqueLobbyID,
+  loadPersistedGame,
+  parseFen,
+  savePersistedGame,
+  type PersistedGame,
+} from "./lobbyStorage";
 import { initAuth } from "../../backend/firebase";
 import { Chat, type ChatMessage } from "./Chat";
 import { Timer } from "./Timer";
 import { useGameSetup } from "./useGameSetup";
-import { useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 type SquareProps = {
   square: Square;
@@ -437,19 +448,34 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const gameStartRef = useRef(false);
   const lastHandledDrawRef = useRef<string | null>(null);
   const timerResetRef = useRef<number>(0);
+  const configRef = useRef<GameConfig | null>(null);
+  const winnerRef = useRef<Color | undefined>(undefined);
+  const chatMessagesRef = useRef<ChatMessage[]>([]);
+  const timersRef = useRef<{ white: number | null; black: number | null }>({
+    white: null,
+    black: null,
+  });
+  const lastSyncedFenRef = useRef("");
 
-  const location = useLocation();
+  //Navigation + lobby id routing. While restoring, will hide the setup modal briefly while an online game reconnects for smoother experience
+  const navigate = useNavigate();
+  const params = useParams<{ id: string }>();
+  const [restoring, setRestoring] = useState(() => {
+    if (!params.id) return false;
+    return loadPersistedGame(params.id)?.mode === "multiplayer";
+  });
   const { gameCode, waitingForOpponent, handleCreateGame, handleJoinGame } =
     useGameSetup(({ config, gameID }) => {
-      gameIDRef.current = gameID;
-      handleGameStart(config);
-      startOnlineGame(null);
+      //Online game loads and persists the reconnect session, then navigates to /game/[code].
+      savePersistedGame(createInitialPersistedGame(gameID, config));
+      navigate(`/game/${gameID}`);
     });
 
   const showGameOverModal = gameState !== "ongoing";
 
   const timerSeconds = gameConfig?.timerSeconds ?? 300;
   const timerIncrement = gameConfig?.timerIncrement ?? 0;
+  const timerEnabled = gameConfig?.timerEnabled ?? true;
 
   function handleTimeout(loser: Color): void {
     const winner: Color = loser === "white" ? "black" : "white";
@@ -882,8 +908,9 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     }
   }
 
-  //Sets game to be in playable state and restarts game config modal
+  //Rematch abandons the current lobby and clears relevant variables
   function handleRematch(): void {
+    if (gameIDRef.current) clearPersistedGame(gameIDRef.current);
     updateGameState("ongoing");
     setGameConfig(null);
     const baseState = boardHistoryRef.current[0];
@@ -896,6 +923,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     gameStartRef.current = false;
     timerResetRef.current++;
     gameIDRef.current = null;
+    timersRef.current = { white: null, black: null };
   }
 
   async function handleAiMove(color: Color): Promise<void> {
@@ -1065,6 +1093,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function updateGameState(state: GameState): void {
     gameStateRef.current = state;
     setGameState(state);
+    //On close clear local storage
+    if (state === "closed" && gameIDRef.current) {
+      clearPersistedGame(gameIDRef.current);
+    }
     if (gameStateRef.current !== "ongoing") gameStartRef.current = false;
   }
 
@@ -1090,6 +1122,25 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     colorAIRef.current = config.playerColor === "white" ? "black" : "white";
     gameStartRef.current = false;
     timerResetRef.current++;
+    enPassantRef.current = [];
+    enPassantHistoryRef.current = [];
+    lastSyncedFenRef.current = "";
+
+    boardHistoryRef.current = [
+      {
+        board: structuredClone(board),
+        turn: "white",
+        halfMove: 0,
+        fullMove: 0,
+        enPassant: null,
+        firstMove: true,
+      },
+    ];
+    boardHistoryIndexRef.current = 0;
+    timersRef.current = {
+      white: config.timerEnabled === false ? 0 : (config.timerSeconds ?? 300),
+      black: config.timerEnabled === false ? 0 : (config.timerSeconds ?? 300),
+    };
 
     //Reset UI states
     updateGameState("ongoing");
@@ -1101,6 +1152,195 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     //Set config LAST so useEffect fires after everything above is set
     setGameConfig(config);
   }
+
+  //Starts a local/ai game from the in-game setup modal with fresh game ID
+  async function handleModalStart(config: GameConfig): Promise<void> {
+    const id = await generateUniqueLobbyID();
+    gameIDRef.current = id;
+    handleGameStart(config);
+    navigate(`/game/${id}`, { replace: true });
+  }
+
+  //Restores a saved local/ai game from local storage and rebuilds the board utilizing saved states from
+  function restoreGame(persisted: PersistedGame): void {
+    const fresh = populateBoard(structuredClone(board));
+    board.forEach((rank, i) => {
+      rank.forEach((square, j) => {
+        Object.assign(square, fresh[i][j]);
+      });
+    });
+    coordinates(board);
+
+    const lastFen = persisted.fenHistory[persisted.fenHistory.length - 1];
+    if (lastFen) applyFenToBoard(lastFen, board);
+
+    const scratch = createEmptyBoard();
+    boardHistoryRef.current = [];
+    persisted.fenHistory.forEach((fen, i) => {
+      applyFenToBoard(fen, scratch);
+      const parsed = parseFen(fen);
+      boardHistoryRef.current.push({
+        board: structuredClone(scratch),
+        turn: parsed.turn,
+        halfMove: parsed.halfMove,
+        fullMove: parsed.fullMove,
+        enPassant: parsed.enPassant,
+        firstMove: i === 0,
+      });
+    });
+    boardHistoryIndexRef.current = persisted.fenHistory.length - 1;
+
+    halfRef.current = persisted.halfMove;
+    turnRef.current = persisted.turn;
+    currentTurnRef.current = persisted.currentTurn;
+    playerRef.current = persisted.playerColor;
+    vsAIRef.current = persisted.vsAI;
+    colorAIRef.current = persisted.colorAI;
+    firstMoveRef.current = persisted.fenHistory.length <= 1;
+    enPassantHistoryRef.current = persisted.enPassantHistory ?? [];
+    enPassantRef.current = board
+      .flat()
+      .filter((s) => s.enPassantTake)
+      .map((s) => s.coordinate);
+    fenRef.current = persisted.fenHistory.slice(1);
+    checkRef.current = check(currentTurnRef.current, board);
+    gameStartRef.current = persisted.fenHistory.length > 1;
+    aiResponseWaitRef.current = false;
+    timersRef.current = persisted.timers ?? {
+      white: persisted.config.timerSeconds ?? 300,
+      black: persisted.config.timerSeconds ?? 300,
+    };
+
+    gameIDRef.current = persisted.id;
+    setChatMessages(persisted.chatMessages);
+    setClicked(false);
+    setStorePiece(null);
+    setPrevSquare(null);
+    updateGameState(persisted.gameState);
+    setWinner(persisted.winner);
+
+    setGameConfig(persisted.config);
+  }
+
+  //Reconnects to a multiplayer game using the lobby id in the url. The
+  //player's color is verified against firebase with their anonymous uid.
+  //Just to prevent potential cheating with local storage edits
+  async function reconnectOnline(
+    routeID: string,
+    persisted: PersistedGame,
+  ): Promise<void> {
+    const uid = await initAuth();
+    userIDRef.current = uid;
+
+    let data: GameData | null;
+    try {
+      data = await getGameData(routeID);
+    } catch {
+      data = null;
+    }
+
+    if (!data || data.status === "waiting") {
+      clearPersistedGame(routeID);
+      setRestoring(false);
+      return;
+    }
+
+    const isWhite = data.playerWhite === uid;
+    const isBlack = data.playerBlack === uid;
+
+    let color: Color | null = null;
+    if (isWhite && isBlack) {
+      //Same anonymous uid occupies both slots (local dev testing on one browser)
+      color = persisted.playerColor ?? "white";
+    } else if (isWhite) {
+      color = "white";
+    } else if (isBlack) {
+      color = "black";
+    }
+
+    if (!color) {
+      //Not a participant of this game, don't let them in
+      clearPersistedGame(routeID);
+      setRestoring(false);
+      return;
+    }
+
+    gameIDRef.current = routeID;
+    const config: GameConfig = {
+      mode: "multiplayer",
+      playerColor: color,
+      timerSeconds: data.timerSeconds ?? 300,
+      timerIncrement: data.timerIncrement ?? 0,
+      timerEnabled: data.timerEnabled ?? true,
+    };
+    handleGameStart(config);
+    timersRef.current = persisted.timers ?? {
+      white: config.timerEnabled === false ? 0 : config.timerSeconds,
+      black: config.timerEnabled === false ? 0 : config.timerSeconds,
+    };
+
+    setRestoring(false);
+    startOnlineGame(null);
+  }
+
+  //Persists the current game to localStorage, keyed by the lobby id. Different stuff is saved depending on if online or not.
+  const persistSession = useCallback(() => {
+    const id = gameIDRef.current;
+    const config = configRef.current;
+    if (!id || !config) return;
+
+    const timerSeconds = config.timerSeconds ?? 300;
+    const base = {
+      id,
+      config,
+      gameState: gameStateRef.current,
+      winner: winnerRef.current,
+      currentTurn: currentTurnRef.current,
+      halfMove: halfRef.current,
+      turn: turnRef.current,
+      playerColor: playerRef.current,
+      vsAI: vsAIRef.current,
+      colorAI: colorAIRef.current,
+      firstMove: firstMoveRef.current,
+      timers: {
+        white: timersRef.current.white ?? timerSeconds,
+        black: timersRef.current.black ?? timerSeconds,
+      },
+    };
+
+    if (config.mode === "multiplayer") {
+      //Online state lives in firebase; just persist the reconnect session
+      savePersistedGame({
+        ...base,
+        mode: "multiplayer",
+        fenHistory: [],
+        chatMessages: [],
+        enPassantHistory: [],
+      });
+      return;
+    }
+
+    const history = boardHistoryRef.current.slice(
+      0,
+      boardHistoryIndexRef.current + 1,
+    );
+    savePersistedGame({
+      ...base,
+      mode: config.mode,
+      fenHistory: history.map((h) =>
+        completeFEN(
+          h.board,
+          fenFormat(h.board),
+          h.turn,
+          h.halfMove,
+          h.fullMove,
+          h.enPassant ?? undefined,
+        ),
+      ),
+      chatMessages: chatMessagesRef.current,
+      enPassantHistory: enPassantHistoryRef.current,
+    });
+  }, []);
 
   function undo(): void {
     if (boardHistoryIndexRef.current - 1 < 0) {
@@ -1139,6 +1379,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setStorePiece(null);
     setPrevSquare(null);
     unHighlight();
+    persistSession();
   }
 
   //initialData
@@ -1162,6 +1403,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     const gameUnsub = listenToGame(gameIDRef.current, (data) => {
       const winner = data.winner !== null ? data.winner : undefined;
 
+      //Sync the board with the authoritative firebase state so a refresh/reconnect mid-game shows correctly.
+      if (data.status !== "waiting") {
+        currentTurnRef.current = data.currentTurn;
+        if (data.lastMove) gameStartRef.current = true;
+        if (data.fen && data.fen !== lastSyncedFenRef.current) {
+          applyFenToBoard(data.fen, board);
+          lastSyncedFenRef.current = data.fen;
+          forceRender();
+        }
+      }
+
       if (data.status === "finished" && gameStateRef.current === "ongoing") {
         if (data.gameState === "checkmate") {
           setWinner(winner);
@@ -1177,19 +1429,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           updateGameState("forfeit");
           return;
         }
-      }
-
-      if (
-        data.lastMove !== null &&
-        data.currentTurn === playerRef.current &&
-        data.status === "ongoing"
-      ) {
-        applyFenToBoard(data.fen, board);
-        currentTurnRef.current = data.currentTurn;
-        if (data.lastMove !== undefined) {
-          gameStartRef.current = true;
-        }
-        forceRender();
       }
 
       if (data.draw && data.drawBy !== playerRef.current) {
@@ -1355,29 +1594,42 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   useEffect(() => {
     coordinates(board);
 
-    boardHistoryRef.current.push({
-      board: structuredClone(board),
-      turn: currentTurnRef.current,
-      halfMove: halfRef.current,
-      fullMove: turnRef.current,
-      enPassant: enPassantRef.current[0] ?? null,
-      firstMove: firstMoveRef.current,
-    });
-
     initAuth().then((uid) => {
       userIDRef.current = uid;
       setAuthReady(true);
     });
-
-    const state = location.state as
-      | { config?: GameConfig; gameID?: string }
-      | null;
-    if (state?.config) {
-      if (state.gameID) gameIDRef.current = state.gameID;
-      handleGameStart(state.config);
-      if (state.gameID) startOnlineGame(null);
-    }
   }, []);
+
+  //Restores a lobby for the current game based on mode and id. Keyed on params.id instead of mount-only
+  //because otherwise the new game modal would not disappear on new game start after completing a game
+  useEffect(() => {
+    const routeID = params.id;
+    if (!routeID) return;
+
+    const persisted = loadPersistedGame(routeID);
+    if (!persisted) return;
+    if (routeID === gameIDRef.current) return; //Already on this lobby
+
+    if (persisted.mode === "multiplayer") {
+      setRestoring(true);
+      reconnectOnline(routeID, persisted);
+    } else {
+      restoreGame(persisted);
+    }
+  }, [params.id]);
+
+  //Mirrors react state into refs so persistence always reads fresh values
+  useEffect(() => {
+    configRef.current = gameConfig;
+    winnerRef.current = winner;
+    chatMessagesRef.current = chatMessages;
+  }, [gameConfig, winner, chatMessages]);
+
+  //Persists on every committed change to the game state
+  useEffect(() => {
+    if (!configRef.current || !gameIDRef.current) return;
+    persistSession();
+  }, [gameConfig, gameState, winner, chatMessages]);
 
   //On start select game configurations
   useEffect(() => {
@@ -1388,6 +1640,18 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     ) {
       firstMoveRef.current = false;
       handleAiMove("white");
+    }
+  }, [gameConfig]);
+
+  //Resumes an AI game after refresh where it was the AI's turn to move
+  useEffect(() => {
+    if (gameConfig?.mode !== "ai") return;
+    if (
+      vsAIRef.current &&
+      currentTurnRef.current === colorAIRef.current &&
+      gameStartRef.current
+    ) {
+      handleAiMove(colorAIRef.current);
     }
   }, [gameConfig]);
 
@@ -1407,7 +1671,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           <Undo2 /> <span className="text-sm font-medium">Undo</span>
         </button>
       )}
-
       <div className="flex items-center min-w-0 w-[80vw] lg:w-[40vw] md:w-[45vw] md:ml-11 sm:w-[67vw]">
         <div className="grid grid-cols-8 w-[90vw] md:w-[80vw] lg:w-[90v] max-w-170 aspect-square shadow-2xl min-w-0">
           {/*Mirror board for player POV using black chess pieces */}
@@ -1426,7 +1689,6 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             ))}
         </div>
       </div>
-
       {/*Chat */}
       <div className="hidden md:block md:h-[45vh] md:max-h-100 lg:h-[60dvh] lg:max-h-120 xl:h-[60dvh] xl:max-h-full 2xl:h-[69dvh]">
         <Chat
@@ -1443,6 +1705,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           <Timer
             key={`white-${gameIDRef.current ?? timerResetRef.current}`}
             initialSeconds={timerSeconds}
+            initialRemaining={timersRef.current.white ?? undefined}
             isActive={
               currentTurnRef.current === playerRef.current &&
               gameState === "ongoing" &&
@@ -1450,12 +1713,18 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             }
             isGameOver={gameState !== "ongoing"}
             increment={timerIncrement}
+            countUp={!timerEnabled}
+            onTick={(sec) => {
+              timersRef.current.white = sec;
+              persistSession();
+            }}
             onTimeout={() => handleTimeout(playerRef.current)}
             label={playerRef.current === "white" ? "White" : "Black"}
           />
           <Timer
             key={`black-${gameIDRef.current ?? timerResetRef.current}`}
             initialSeconds={timerSeconds}
+            initialRemaining={timersRef.current.black ?? undefined}
             isActive={
               currentTurnRef.current !== playerRef.current &&
               gameState === "ongoing" &&
@@ -1463,6 +1732,11 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
             }
             isGameOver={gameState !== "ongoing"}
             increment={timerIncrement}
+            countUp={!timerEnabled}
+            onTick={(sec) => {
+              timersRef.current.black = sec;
+              persistSession();
+            }}
             onTimeout={() =>
               handleTimeout(playerRef.current === "white" ? "black" : "white")
             }
@@ -1470,11 +1744,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           />
         </div>
       </div>
-
       {/* Game config and game over modals */}
-      {!gameConfig && (
+      {!gameConfig && !restoring && (
         <GameSetupModal
-          onStart={handleGameStart}
+          onStart={handleModalStart}
           onCreateGame={handleCreateGame}
           onJoinGame={handleJoinGame}
           gameCode={gameCode}

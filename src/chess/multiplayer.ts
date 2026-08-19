@@ -31,6 +31,7 @@ export async function createGame(
   playerColor: "white" | "black",
   timerSeconds: number,
   timerIncrement: number,
+  timerEnabled: boolean,
 ): Promise<void> {
   const gameRef = ref(database, `games/${gameId}`);
   await set(gameRef, {
@@ -43,6 +44,7 @@ export async function createGame(
     createdAt: Date.now(),
     timerSeconds,
     timerIncrement,
+    timerEnabled,
   });
 }
 
@@ -198,6 +200,7 @@ export interface GameData {
   updatedAt: number;
   timerSeconds: number;
   timerIncrement: number;
+  timerEnabled: boolean;
   draw: "draw_offer" | "draw_accept" | "draw_decline" | "forfeit" | null;
   drawBy?: Color | null;
 }

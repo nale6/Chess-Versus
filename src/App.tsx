@@ -9,6 +9,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/game" element={<Game />} />
+        {/* vvv /game/:id lets an in-progress game be bookmarked/resumed after refresh*/}
+        <Route path="/game/:id" element={<Game />} />
       </Routes>
     </HashRouter>
   );

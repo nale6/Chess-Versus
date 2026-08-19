@@ -7,6 +7,7 @@ interface GameSetupModalProps {
     playerColor: Color,
     timerSeconds: number,
     timerIncrement: number,
+    timerEnabled: boolean,
   ) => Promise<void>;
   onJoinGame: (gameId: string, playerColor: "white" | "black") => Promise<void>;
   gameCode: string | null;
@@ -20,6 +21,7 @@ export interface GameConfig {
   difficulty?: number; // only matters on vs ai
   timerSeconds: number;
   timerIncrement: number; // 0 = disabled
+  timerEnabled: boolean; //False = clocks count time spent instead of counting down
 }
 
 export function GameSetupModal({
@@ -49,6 +51,7 @@ export function GameSetupModal({
   ];
   const [timerIndex, setTimerIndex] = useState(4);
   const [incrementEnabled, setIncrementEnabled] = useState(false);
+  const [timerEnabled, setTimerEnabled] = useState(true);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -91,116 +94,148 @@ export function GameSetupModal({
           </div>
         </div>
 
-        {/**Local Tab */}
-        {mode === "local" && (
+        {/*Hide player selection and timer options on waiting for multiplayer in online mode */}
+        {!(mode === "multiplayer" && waitingForOpponent) && (
           <>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider">
-                Point Of View
-              </label>
-              <div className="flex gap-2 mb-[5%]">
-                {(["white", "black"] as const).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setPlayerColor(c)}
-                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors cursor-pointer select-none
-                      ${
-                        playerColor === c
-                          ? "bg-white text-zinc-900"
-                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                      }`}
-                  >
-                    {c === "white" ? "White" : "Black"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/*VS AI Tab */}
-        {mode === "ai" && (
-          <>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider">
-                Play as
-              </label>
-              <div className="flex gap-2">
-                {(["white", "black"] as const).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setPlayerColor(c)}
-                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors cursor-pointer select-none
-                      ${
-                        playerColor === c
-                          ? "bg-white text-zinc-900"
-                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                      }`}
-                  >
-                    {c === "white" ? "White" : "Black"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/*Difficulty Slider */}
-            <div className="flex flex-col gap-3">
-              <div className="flex justify-between">
-                <label className="text-xs text-gray-400 uppercase tracking-wider">
-                  Difficulty
-                </label>
-                <span className="text-xs text-gray-400">
-                  {difficulty <= 3
-                    ? "Beginner"
-                    : difficulty <= 5
-                      ? "Intermediate"
-                      : difficulty <= 7
-                        ? "Advanced"
-                        : "Expert"}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={9}
-                value={difficulty}
-                onChange={(e) => setDifficulty(Number(e.target.value))}
-                className="w-full accent-white cursor-grab active:cursor-grabbing select-none"
-              />
-              <div className="flex justify-between text-xs text-gray-600">
-                {/* 1-10 Even though it's 1-9 because it looks better. 1-9 because the 5 is in exact middle. */}
-                <span>1</span>
-                <span>10</span>
-              </div>
-            </div>
-          </>
-        )}
-        {mode === "multiplayer" && (
-          <div className="flex flex-col gap-4">
             {/* Player selection */}
             <div className="flex flex-col gap-2">
               <label className="text-xs text-gray-400 uppercase tracking-wider">
                 Play as
               </label>
               <div className="flex gap-2">
-                {(["white", "black"] as const).map((c) => (
+                {(["white", "black"] as const).map((color) => (
                   <button
-                    key={c}
-                    onClick={() => setOnlineColor(c)}
-                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors
-              ${
-                onlineColor === c
-                  ? "bg-white text-zinc-900"
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-              }`}
+                    key={color}
+                    onClick={() =>
+                      mode === "multiplayer"
+                        ? setOnlineColor(color)
+                        : setPlayerColor(color)
+                    }
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors cursor-pointer select-none ${
+                      mode === "multiplayer"
+                        ? onlineColor === color
+                          ? "bg-white text-zinc-900"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                        : playerColor === color
+                          ? "bg-white text-zinc-900"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    }`}
                   >
-                    {c === "white" ? "White" : "Black"}
+                    {color === "white" ? "White" : "Black"}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/*Waiting Screen */}
+            {/*VS AI Tab */}
+            {mode === "ai" && (
+              <>
+                {/*Difficulty Slider */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between">
+                    <label className="text-xs text-gray-400 uppercase tracking-wider">
+                      Difficulty
+                    </label>
+                    <span className="text-xs text-gray-400">
+                      {difficulty <= 3
+                        ? "Beginner"
+                        : difficulty <= 5
+                          ? "Intermediate"
+                          : difficulty <= 7
+                            ? "Advanced"
+                            : "Expert"}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={9}
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(Number(e.target.value))}
+                    className="w-full accent-white cursor-grab active:cursor-grabbing select-none"
+                  />
+                  <div className="flex justify-between text-xs text-gray-600">
+                    {/* 1-10 Even though it's 1-9 because it looks better. 1-9 because the 5 is in exact middle. */}
+                    <span>1</span>
+                    <span>10</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-400 uppercase tracking-wider">
+                  Timers
+                </span>
+                <span className="text-xs text-gray-600">Enable timer</span>
+              </div>
+              <button
+                onClick={() => setTimerEnabled((prev) => !prev)}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer
+        ${timerEnabled ? "bg-white" : "bg-gray-700"}`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-900 transition-transform duration-200
+          ${timerEnabled ? "translate-x-5" : "translate-x-0"}`}
+                />
+              </button>
+            </div>
+
+            {timerEnabled && (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs text-gray-400 uppercase tracking-wider">
+                      Time per player
+                    </label>
+                    <span className="text-xs text-white font-medium">
+                      {timeOptions[timerIndex].label}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={timeOptions.length - 1}
+                    value={timerIndex}
+                    onChange={(e) => setTimerIndex(Number(e.target.value))}
+                    className="w-full accent-white"
+                  />
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>30s</span>
+                    <span>30m</span>
+                  </div>
+                </div>
+
+                {/* Increment toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-400 uppercase tracking-wider">
+                      +1s per move
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      Add 1 second after each move
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIncrementEnabled((prev) => !prev)}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer
+            ${incrementEnabled ? "bg-white" : "bg-gray-700"}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-900 transition-transform duration-200
+              ${incrementEnabled ? "translate-x-5" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {mode === "multiplayer" && (
+          <div className="flex flex-col gap-4">
+            {/*Waiting Screen - options lock in once a lobby is created */}
             {waitingForOpponent ? (
               <div className="flex flex-col items-center gap-3">
                 <p className="text-sm text-gray-400">
@@ -214,106 +249,71 @@ export function GameSetupModal({
                 </p>
               </div>
             ) : (
-              //Create or join game
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() =>
-                    onCreateGame(
-                      onlineColor,
-                      timeOptions[timerIndex].value,
-                      incrementEnabled ? 1 : 0,
-                    )
-                  }
-                  className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors"
-                >
-                  Create Game
-                </button>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-gray-700" />
-                  <span className="text-xs text-gray-500">or</span>
-                  <div className="flex-1 h-px bg-gray-700" />
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="Enter code"
-                    maxLength={6}
-                    className="flex-1 rounded-lg bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 font-mono tracking-widest outline-none border border-gray-700 focus:border-gray-500"
-                  />
-                  <button
-                    onClick={() => onJoinGame(joinCode, onlineColor)}
-                    disabled={joinCode.length !== 6}
-                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
+              <>
+                {/*Join a game */}
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-gray-700" />
+                    <span className="text-xs text-gray-500">or</span>
+                    <div className="flex-1 h-px bg-gray-700" />
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={joinCode}
+                      onChange={(e) =>
+                        setJoinCode(e.target.value.toUpperCase())
+                      }
+                      placeholder="Enter code"
+                      maxLength={6}
+                      className="flex-1 rounded-lg bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 font-mono tracking-widest outline-none border border-gray-700 focus:border-gray-500"
+                    />
+                    <button
+                      onClick={() => onJoinGame(joinCode, onlineColor)}
+                      disabled={joinCode.length !== 6}
+                      className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-gray-200 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Join
+                    </button>
+                  </div>
+                </>
+              </>
             )}
           </div>
         )}
 
-        {/* Timer selection */}
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-center">
-            <label className="text-xs text-gray-400 uppercase tracking-wider">
-              Time per player
-            </label>
-            <span className="text-xs text-white font-medium">
-              {timeOptions[timerIndex].label}
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={timeOptions.length - 1}
-            value={timerIndex}
-            onChange={(e) => setTimerIndex(Number(e.target.value))}
-            className="w-full accent-white"
-          />
-          <div className="flex justify-between text-xs text-gray-600">
-            <span>30s</span>
-            <span>30m</span>
-          </div>
-        </div>
-
-        {/* Increment toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-400 uppercase tracking-wider">
-              +1s per move
-            </span>
-            <span className="text-xs text-gray-600">
-              Add 1 second after each move
-            </span>
-          </div>
+        {mode === "multiplayer" ? (
+          waitingForOpponent ? null : (
+            <button
+              onClick={() =>
+                onCreateGame(
+                  onlineColor,
+                  timeOptions[timerIndex].value,
+                  timerEnabled && incrementEnabled ? 1 : 0,
+                  timerEnabled,
+                )
+              }
+              className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none"
+            >
+              Create Game
+            </button>
+          )
+        ) : (
           <button
-            onClick={() => setIncrementEnabled((prev) => !prev)}
-            className={`relative w-11 h-6 rounded-full transition-colors duration-200
-      ${incrementEnabled ? "bg-white" : "bg-gray-700"}`}
+            onClick={() =>
+              onStart({
+                mode,
+                playerColor,
+                difficulty,
+                timerSeconds: timeOptions[timerIndex].value,
+                timerIncrement: timerEnabled && incrementEnabled ? 1 : 0,
+                timerEnabled,
+              })
+            }
+            className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none"
           >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-zinc-900 transition-transform duration-200
-        ${incrementEnabled ? "translate-x-5" : "translate-x-0"}`}
-            />
+            Start Game
           </button>
-        </div>
-        <button
-          onClick={() =>
-            onStart({
-              mode,
-              playerColor,
-              difficulty,
-              timerSeconds: timeOptions[timerIndex].value,
-              timerIncrement: incrementEnabled ? 1 : 0,
-            })
-          }
-          disabled={mode === "multiplayer"}
-          className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-zinc-900 hover:bg-gray-200 cursor-pointer select-none disabled:invisible disabled:mb-[-20%]"
-        >
-          Start Game
-        </button>
+        )}
       </div>
     </div>
   );

@@ -15,6 +15,13 @@ import {
 } from "lucide-react";
 import { GameSetupModal } from "../../components/modals/gamemode-modal";
 import { useGameSetup } from "../chess/useGameSetup";
+//Starting a game now persists it first, then navigates to /game/[id] so a refresh/back-navigation resumes it instead of losing the config
+import {
+  createInitialPersistedGame,
+  generateUniqueLobbyID,
+  savePersistedGame,
+} from "../chess/lobbyStorage";
+import type { GameConfig } from "../../components/modals/gamemode-modal";
 
 const Landing = () => {
   const openingIndexRef = useRef<number | null>(null);
@@ -24,8 +31,17 @@ const Landing = () => {
   const [showSetup, setShowSetup] = useState(false);
   const { gameCode, waitingForOpponent, handleCreateGame, handleJoinGame } =
     useGameSetup(({ config, gameID }) => {
-      navigate("/game", { state: { config, gameID } });
+      //Online game after loading will persist the reconnect session, then go to /game/[code]
+      savePersistedGame(createInitialPersistedGame(gameID, config));
+      navigate(`/game/${gameID}`);
     });
+
+  //Local/AI games will generate a Firebase-checked unique id, persist the fresh game, then navigate. With no router state, refresh restores from localStorage
+  async function handleStartGame(config: GameConfig): Promise<void> {
+    const id = await generateUniqueLobbyID();
+    savePersistedGame(createInitialPersistedGame(id, config));
+    navigate(`/game/${id}`);
+  }
 
   type Piece = {
     id: string;
@@ -364,7 +380,7 @@ const Landing = () => {
 
       {showSetup && (
         <GameSetupModal
-          onStart={(config) => navigate("/game", { state: { config } })}
+          onStart={handleStartGame}
           onCreateGame={handleCreateGame}
           onJoinGame={handleJoinGame}
           gameCode={gameCode}

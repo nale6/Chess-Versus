@@ -31,6 +31,7 @@ export function useGameSetup(
     playerColor: Color,
     timerSeconds: number,
     timerIncrement: number,
+    timerEnabled: boolean,
   ): Promise<void> {
     const gameId = generateGameID();
 
@@ -40,6 +41,7 @@ export function useGameSetup(
       playerColor,
       timerSeconds,
       timerIncrement,
+      timerEnabled,
     );
     setGameCode(gameId);
     setWaitingForOpponent(true);
@@ -55,6 +57,7 @@ export function useGameSetup(
             playerColor,
             timerSeconds,
             timerIncrement,
+            timerEnabled,
           },
           gameID: gameId,
         });
@@ -80,6 +83,7 @@ export function useGameSetup(
         playerColor: result.assignedColor,
         timerSeconds: gameData?.timerSeconds ?? 300,
         timerIncrement: gameData?.timerIncrement ?? 0,
+        timerEnabled: gameData?.timerEnabled ?? true,
       },
       gameID: gameId,
     });
