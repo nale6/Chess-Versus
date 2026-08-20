@@ -26,6 +26,7 @@ export type PieceType =
   | "king";
 
 export type Piece = {
+  id: string;
   type: PieceType;
   color: Color;
   moved?: boolean;

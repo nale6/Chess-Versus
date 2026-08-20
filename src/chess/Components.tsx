@@ -63,6 +63,48 @@ import { Chat, type ChatMessage } from "./Chat";
 import { Timer } from "./Timer";
 import { useGameSetup } from "./useGameSetup";
 import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
+
+//How long a piece takes to slide between squares. Tweak to taste.
+const moveAnimationDuration = 0.35;
+
+function PieceIcon({ piece }: { piece: Piece }) {
+  const color = piece.color === "white" ? undefined : "#000000";
+  const className = "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12";
+  switch (piece.type) {
+    case "pawn":
+      return <ChessPawn size={21} color={color} className={className} />;
+    case "rook":
+      return <ChessRook size={21} color={color} className={className} />;
+    case "knight":
+      return <ChessKnight size={21} color={color} className={className} />;
+    case "bishop":
+      return <ChessBishop size={21} color={color} className={className} />;
+    case "queen":
+      return <ChessQueen size={21} color={color} className={className} />;
+    case "king":
+      return <ChessKing size={21} color={color} className={className} />;
+    default:
+      return null;
+  }
+}
+
+//layoutId lets framer-motion slide a piece between squares whenever it changes
+//position. Stable piece ids mean this fires on real moves (your turn, the AI's,
+//or the opponent's move synced over firebase) but not on a fresh mount. The
+//wrapper fills the square and stays out of flow so it never affects the grid.
+function AnimatedPiece({ piece }: { piece: Piece }) {
+  return (
+    <motion.div
+      key={piece.id}
+      layoutId={piece.id}
+      className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
+      transition={{ duration: moveAnimationDuration, ease: "easeInOut" }}
+    >
+      <PieceIcon piece={piece} />
+    </motion.div>
+  );
+}
 
 type SquareProps = {
   square: Square;
@@ -287,116 +329,22 @@ export function SquareTSX({ square, onClick, playerColor }: SquareProps) {
           A
         </div>
       )}
-      {square.squarePiece &&
-        square.squarePiece.type === "pawn" &&
-        square.squarePiece.color === "white" && (
-          <div className="relative">
+      {square.squarePiece && (
+        <div className="relative w-full h-full">
+          {square.squarePiece.color === "white" &&
+          square.squarePiece.type === "pawn" ? (
             <div
-              className="absolute inset-0 inline-flex self-start w-fit h-fit items-center justify-center bg-transparent p-0 border-0 shadow-none"
+              className="absolute inset-0 flex items-center justify-center"
               draggable
               onDragOver={(e) => e.preventDefault()}
             >
-              <ChessPawn
-                size={21}
-                className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-              />
+              <AnimatedPiece piece={square.squarePiece} />
             </div>
-          </div>
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "pawn" &&
-        square.squarePiece.color === "black" && (
-          <ChessPawn
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "rook" &&
-        square.squarePiece.color === "white" && (
-          <ChessRook
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "rook" &&
-        square.squarePiece.color === "black" && (
-          <ChessRook
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "knight" &&
-        square.squarePiece.color === "white" && (
-          <ChessKnight
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "knight" &&
-        square.squarePiece.color === "black" && (
-          <ChessKnight
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "bishop" &&
-        square.squarePiece.color === "white" && (
-          <ChessBishop
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "bishop" &&
-        square.squarePiece.color === "black" && (
-          <ChessBishop
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "queen" &&
-        square.squarePiece.color === "white" && (
-          <ChessQueen
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "queen" &&
-        square.squarePiece.color === "black" && (
-          <ChessQueen
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "king" &&
-        square.squarePiece.color === "white" && (
-          <ChessKing
-            size={21}
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
-      {square.squarePiece &&
-        square.squarePiece.type === "king" &&
-        square.squarePiece.color === "black" && (
-          <ChessKing
-            size={21}
-            color="#000000"
-            className="absolute w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
-          />
-        )}
+          ) : (
+            <AnimatedPiece piece={square.squarePiece} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -456,13 +404,17 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     black: null,
   });
   const lastSyncedFenRef = useRef("");
+  //First fen pushed by firebase after (re)connecting rebuilds the board from
+  //scratch; only reuse piece ids on subsequent syncs so live moves animate but
+  //a mid-game reconnect does not replay transitions for moves that already happened.
+  const preserveIdsRef = useRef(false);
 
   //Navigation + lobby id routing. While restoring, will hide the setup modal briefly while an online game reconnects for smoother experience
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const [restoring, setRestoring] = useState(() => {
     if (!params.id) return false;
-    return loadPersistedGame(params.id)?.mode === "multiplayer";
+    return loadPersistedGame(params.id) !== null;
   });
   const { gameCode, waitingForOpponent, handleCreateGame, handleJoinGame } =
     useGameSetup(({ config, gameID }) => {
@@ -1125,6 +1077,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     enPassantRef.current = [];
     enPassantHistoryRef.current = [];
     lastSyncedFenRef.current = "";
+    preserveIdsRef.current = false;
 
     boardHistoryRef.current = [
       {
@@ -1220,6 +1173,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setWinner(persisted.winner);
 
     setGameConfig(persisted.config);
+    setRestoring(false);
   }
 
   //Reconnects to a multiplayer game using the lobby id in the url. The
@@ -1408,7 +1362,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
         currentTurnRef.current = data.currentTurn;
         if (data.lastMove) gameStartRef.current = true;
         if (data.fen && data.fen !== lastSyncedFenRef.current) {
-          applyFenToBoard(data.fen, board);
+          applyFenToBoard(data.fen, board, preserveIdsRef.current);
+          preserveIdsRef.current = true;
           lastSyncedFenRef.current = data.fen;
           forceRender();
         }

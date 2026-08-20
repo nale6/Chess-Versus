@@ -1,5 +1,25 @@
-import type { Player, Color, ChessBoard, PieceType } from "./chessTypes";
+import type { Player, Color, ChessBoard, PieceType, Piece } from "./chessTypes";
 
+//Stable identity for pieces. Good in general but helps with sliding animations between
+//squares via layoutId. Ids are regenerated whenever a board is freshly built, which
+//is what prevents a refresh/restore from replaying old moves.
+let pieceCounter = 0;
+export function generatePieceId(): string {
+  pieceCounter++;
+  return `p-${pieceCounter}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function makePiece(type: PieceType, color: Color): Piece {
+  return {
+    id: generatePieceId(),
+    type,
+    color,
+    turnCount: 0,
+    moved: false,
+  };
+}
+
+//TODO profiles
 export function createPlayer(color: Color): Player {
   return {
     color,
@@ -48,122 +68,62 @@ export function populateBoard(chessboard: ChessBoard): ChessBoard {
 
       //Black Pawn
       if (rowi === 1) {
-        square.squarePiece = {
-          type: "pawn",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("pawn", "black");
       }
 
       //White Pawn
       if (rowi === 6) {
-        square.squarePiece = {
-          type: "pawn",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("pawn", "white");
       }
 
       //Black Rook
       if ((rowi === 0 && coli === 0) || (rowi === 0 && coli === 7)) {
-        square.squarePiece = {
-          type: "rook",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("rook", "black");
       }
 
       //White Rook
       if ((rowi === 7 && coli === 0) || (rowi === 7 && coli === 7)) {
-        square.squarePiece = {
-          type: "rook",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("rook", "white");
       }
 
       //Black Knight
       if ((rowi === 0 && coli === 1) || (rowi === 0 && coli === 6)) {
-        square.squarePiece = {
-          type: "knight",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("knight", "black");
       }
 
       //White Knight
       if ((rowi === 7 && coli === 1) || (rowi === 7 && coli === 6)) {
-        square.squarePiece = {
-          type: "knight",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("knight", "white");
       }
 
       //Black Bishop
       if ((rowi === 0 && coli === 2) || (rowi === 0 && coli === 5)) {
-        square.squarePiece = {
-          type: "bishop",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("bishop", "black");
       }
 
       //White bishop
       if ((rowi === 7 && coli === 2) || (rowi === 7 && coli === 5)) {
-        square.squarePiece = {
-          type: "bishop",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("bishop", "white");
       }
 
       //Black Queen
       if (rowi === 0 && coli === 3) {
-        square.squarePiece = {
-          type: "queen",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("queen", "black");
       }
 
       //White Queen
       if (rowi === 7 && coli === 3) {
-        square.squarePiece = {
-          type: "queen",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("queen", "white");
       }
 
       //Black King
       if (rowi === 0 && coli === 4) {
-        square.squarePiece = {
-          type: "king",
-          color: "black",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("king", "black");
       }
 
       //White King
       if (rowi === 7 && coli === 4) {
-        square.squarePiece = {
-          type: "king",
-          color: "white",
-          turnCount: 0,
-          moved: false,
-        };
+        square.squarePiece = makePiece("king", "white");
       }
 
       return {
@@ -334,8 +294,13 @@ export function completeFEN(
   return fenComplete;
 }
 
-//Function to take FEN string and update board based on it
-export function applyFenToBoard(fen: string, board: ChessBoard): void {
+//Function to take FEN string and update board based on it.
+export function applyFenToBoard(
+  fen: string,
+  board: ChessBoard,
+  //preserveIds reuses the ids of existing pieces where possible. Good in general but mainly used for framer-motion
+  preserveIds = false, //False on initial building to prevent replay transitions on refresh/reconnect
+): void {
   const pieceMap: Record<string, { type: PieceType; color: Color }> = {
     p: { type: "pawn", color: "black" },
     r: { type: "rook", color: "black" },
@@ -351,12 +316,84 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
     K: { type: "king", color: "white" },
   };
 
+  //Snapshot the current pieces so their ids can be reused across live syncs.
+  const oldPieces: { coord: string; piece: Piece }[] = [];
+  board.flat().forEach((sqr) => {
+    if (sqr.squarePiece) {
+      oldPieces.push({ coord: sqr.coordinate, piece: sqr.squarePiece });
+    }
+  });
+
   const [position, , castling, enPassantSquare] = fen.split(" ");
   const ranks = position.split("/");
 
+  //Parse the target layout once so we can tell which old pieces "moved away"
+  //from their current square (they no longer appear there in the new fen).
+  const newLayout: { coord: string; type: PieceType; color: Color }[] = [];
+  ranks.forEach((rank, rowIndex) => {
+    let colIndex = 0;
+    for (const char of rank) {
+      if (!isNaN(parseInt(char))) {
+        colIndex += parseInt(char);
+      } else {
+        const piece = pieceMap[char];
+        if (piece) {
+          newLayout.push({
+            coord: `${chessFiles[colIndex]}${8 - rowIndex}`,
+            type: piece.type,
+            color: piece.color,
+          });
+        }
+        colIndex++;
+      }
+    }
+  });
+
+  const used = new Set<Piece>();
+  const reuseId = (
+    piece: { type: PieceType; color: Color },
+    coord: string,
+  ): string => {
+    //Same square, same type + color: stationary piece, keep its id
+    const stationary = oldPieces.find(
+      (o) =>
+        o.coord === coord &&
+        o.piece.type === piece.type &&
+        o.piece.color === piece.color &&
+        !used.has(o.piece),
+    );
+    if (stationary) {
+      used.add(stationary.piece);
+      return stationary.piece.id;
+    }
+
+    //Piece that moved here finds an unused old piece of the same type +
+    //color whose original square no longer holds an identical piece.
+    const moved = oldPieces.find(
+      (o) =>
+        o.piece.type === piece.type &&
+        o.piece.color === piece.color &&
+        !used.has(o.piece) &&
+        !newLayout.some(
+          (n) =>
+            n.coord === o.coord &&
+            n.type === o.piece.type &&
+            n.color === o.piece.color,
+        ),
+    );
+    if (moved) {
+      used.add(moved.piece);
+      return moved.piece.id;
+    }
+
+    //Get fresh id assigned
+    return generatePieceId();
+  };
+
   board.flat().forEach((sqr) => {
     sqr.enPassant = false;
-    sqr.enPassant = false;
+    sqr.enPassantTake = false;
+    sqr.squarePiece = null;
   });
 
   ranks.forEach((rank, rowIndex) => {
@@ -372,10 +409,12 @@ export function applyFenToBoard(fen: string, board: ChessBoard): void {
       } else {
         const piece = pieceMap[char];
         if (piece) {
+          const coord = `${chessFiles[colIndex]}${8 - rowIndex}`;
           //Determine moved status from castling field
           const moved = determineMoved(rowIndex, colIndex, char, castling);
           board[rowIndex][colIndex].squarePiece = {
             ...piece,
+            id: preserveIds ? reuseId(piece, coord) : generatePieceId(),
             moved,
             turnCount: 0,
           };
