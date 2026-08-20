@@ -30,9 +30,13 @@ import {
   coordinates,
   createEmptyBoard,
   fenFormat,
+  findPawnNeedingPromotion,
   populateBoard,
+  promotePawn,
+  type PromotionType,
 } from "./chessFunctions";
 import { GameOverModal } from "../../components/modals/gameover-modal";
+import { PromotionModal } from "../../components/modals/promotion-modal";
 import { difficultyToDepth, getStockfishMove, uciToSquare } from "./stockFish";
 import {
   GameSetupModal,
@@ -365,6 +369,10 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   const [, forceRender] = useReducer((x) => x + 1, 0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [, setDrawOfferedByOpponent] = useState(false);
+  const [promotion, setPromotion] = useState<{
+    color: Color;
+    square: Square;
+  } | null>(null);
 
   const currentTurnRef = useRef<Color>("white");
   const turnRef = useRef(0);
@@ -686,6 +694,19 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     gameStartRef.current = true;
   }
 
+  //Player picked a promotion piece. Transform the pawn, then finish the room with the new piece transformed for FEN
+  function handlePromotionSelect(type: PromotionType): void {
+    if (!promotion) return;
+    //Guard for the clock timing out while the modal is open
+    if (gameStateRef.current !== "ongoing") {
+      setPromotion(null);
+      return;
+    }
+    promotePawn(promotion.square, type);
+    setPromotion(null);
+    onSuccessfulMove();
+  }
+
   //Goes through board and changes castle flag
   function removeCastle(): void {
     let squares = board.flat();
@@ -705,6 +726,7 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
 
   function parentClick(square: Square): void {
     if (gameStateRef.current !== "ongoing") return;
+    if (promotion) return;
     if (
       gameConfig?.mode !== "local" &&
       currentTurnRef.current !== playerRef.current
@@ -804,6 +826,22 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
     setPrevSquare(null);
     setStorePiece(null);
     unHighlight();
+
+    //If a pawn reached its final rank, hold the move until the player picks a promotion piece. The FEN push and turn switch happen in handlePromotionSelect.
+    if (storePiece.type === "pawn") {
+      const promotionSquare = findPawnNeedingPromotion(
+        currentTurnRef.current,
+        board,
+      );
+      if (promotionSquare) {
+        setPromotion({
+          color: currentTurnRef.current,
+          square: promotionSquare,
+        });
+        return true;
+      }
+    }
+
     onSuccessfulMove();
     return true;
   }
@@ -1045,6 +1083,8 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
   function updateGameState(state: GameState): void {
     gameStateRef.current = state;
     setGameState(state);
+    //Close the promotion modal if the game ends (e.g. clock timeout) while it's open
+    if (state !== "ongoing") setPromotion(null);
     //On close clear local storage
     if (state === "closed" && gameIDRef.current) {
       clearPersistedGame(gameIDRef.current);
@@ -1716,6 +1756,12 @@ export function ChessBoardTSX({ board }: ChessBoardProps) {
           onRematch={() => handleRematch()}
           onClose={() => updateGameState("closed")}
         ></GameOverModal>
+      )}
+      {promotion && (
+        <PromotionModal
+          color={promotion.color}
+          onSelect={handlePromotionSelect}
+        />
       )}
     </div>
   );

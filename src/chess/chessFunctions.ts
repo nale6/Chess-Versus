@@ -1,4 +1,11 @@
-import type { Player, Color, ChessBoard, PieceType, Piece } from "./chessTypes";
+import type {
+  Player,
+  Color,
+  ChessBoard,
+  PieceType,
+  Piece,
+  Square,
+} from "./chessTypes";
 
 //Stable identity for pieces. Good in general but helps with sliding animations between
 //squares via layoutId. Ids are regenerated whenever a board is freshly built, which
@@ -469,4 +476,36 @@ function determineMoved(
 export function getTurn(fen: string): number {
   const items = fen.split(" ");
   return parseInt(items[items.length - 1]);
+}
+
+//Pieces a pawn can be promoted to. The player picks one when a pawn reaches the
+//final rank instead of auto upgrading to a queen.
+export type PromotionType = "queen" | "rook" | "bishop" | "knight";
+
+//Rank a pawn promotes on: white pushes to row 0, black to row 7
+const promotionRank: Record<Color, number> = { white: 0, black: 7 };
+
+//Returns the square holding a pawn of the given color on its promotion rank,
+//or null if there isn't one. Used to decide when to show the promotion modal.
+export function findPawnNeedingPromotion(
+  color: Color,
+  board: ChessBoard,
+): Square | null {
+  return (
+    board.flat().find((sqr) => {
+      const piece = sqr.squarePiece;
+      return (
+        sqr.row === promotionRank[color] &&
+        piece?.type === "pawn" &&
+        piece.color === color
+      );
+    }) ?? null
+  );
+}
+
+//Promotes the pawn on the given square to the chosen piece type.
+export function promotePawn(square: Square, type: PromotionType): void {
+  if (square.squarePiece) {
+    square.squarePiece.type = type;
+  }
 }

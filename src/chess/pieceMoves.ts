@@ -776,12 +776,7 @@ export function simulateMove(
   return check(color, clone);
 }
 
-//TODO modal that allows player to choose what to rank up, defaulting to queen for now. This function selects what type to rank up to, add more types and add parameter to take in piece type
-export function rankUp(square: Square): void {
-  square.squarePiece!.type = "queen";
-}
-
-//TODO: Let player choose piece to rank up to with a modal displaying options. For now auto ranks up to queen
+//AI will always rank up to a queen when reaching respective final rank
 export function autoRankUp(color: Color, board: ChessBoard): void {
   if (color === "white") {
     board.flat().forEach((square) => {
@@ -790,7 +785,7 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
         square.squarePiece &&
         square.squarePiece.type === "pawn"
       ) {
-        rankUp(square);
+        square.squarePiece!.type = "queen";
       }
     });
   } else if (color === "black") {
@@ -800,7 +795,7 @@ export function autoRankUp(color: Color, board: ChessBoard): void {
         square.squarePiece &&
         square.squarePiece.type === "pawn"
       ) {
-        rankUp(square);
+        square.squarePiece!.type = "queen";
       }
     });
   }
